@@ -125,6 +125,11 @@ const UpdateOperators = {
 	},
 
 	$translate(op, data, global) {
+		if (op instanceof Array) {
+			var obj = op.find(obj => obj.from == data);
+			return obj ? compileTemplate(global, obj.to) : data;
+		}
+		
 		if (!(op && op.from instanceof Array && op.to instanceof Array))
 			throw "$translate: invalid from/to argument";
 		
