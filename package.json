@@ -1,0 +1,12 @@
+{
+  "name": "jslt",
+  "version": "0.1.0",
+  "description": "JSON transformer",
+  "main": "jslt.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/capriza/jslt.git"
+  },
+  "author": "",
+  "license": "ISC"
+}
