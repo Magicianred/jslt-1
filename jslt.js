@@ -1,4 +1,21 @@
 
+class JSLT {
+	constructor() {	
+	}
+	
+	transform(data, template) {
+		return compileTemplate(data, template || this.template);
+	}
+	
+	setTemplate(template) {
+		this.template = template;
+	}
+	
+	static transform(data, template) {
+		return compileTemplate(data, arguments.length == 2 ? template : this.template);
+	}
+};
+
 function compileTemplate(data, template) {
 	function visit(value) {
 		if (typeof value == "string") {
@@ -47,7 +64,7 @@ function processUpdate(ops, data) {
 	return ops.reduce((payload, [opName, opValue]) => {
 		const opFunc = UpdateOperators[opName] || UpdateOperators[opName.replace(/\d+$/, "")];
 		if (!opFunc) throw `Invalid operator: ${opName}`;
-		return opFunc(opValue, payload, data);
+		return opFunc(payload, opValue, data);
 	}, data);
 }
 
@@ -95,59 +112,75 @@ const QueryOperators = {
 };
 
 const UpdateOperators = {
-	$fetch(op, data, global) {
-		return compileTemplate(data, op);
+	$fetch(input, args, global) {
+		return compileTemplate(input, args);
 	},
 	
-	$map(op, data, global) {
-		if (!(data instanceof Array)) throw "$map: input is not an array";
-		return data.map(item => compileTemplate(item, op));
-	},
-
-	$filter(op, data, global) {
-		if (!(data instanceof Array)) throw "$filter: input is not an array";
-		return data.filter(item => processQuery(op, item));
-	},
-	
-	$push(op, data, global) {
-		if (!(data instanceof Array)) throw "$push: input is not an array";
-		return data.concat(compileTemplate(global, op));
-	},
-	
-	$unshift(op, data, global) {
-		if (!(data instanceof Array)) throw "$unshift: input is not an array";
-		return [ compileTemplate(global, op) ].concat(data);
-	},
-	
-	$sum(op, data, global) {
-		if (!(data instanceof Array)) throw "$sum: input is not an array";
-		return data.reduce((sum, cur) => sum + cur, 0);
-	},
-
-	$translate(op, data, global) {
-		if (op instanceof Array) {
-			var obj = op.find(obj => obj.from == data);
-			return obj ? compileTemplate(global, obj.to) : data;
+	$translate(input, args, global) {
+		if (args instanceof Array) {
+			var obj = args.find(obj => obj.from == input);
+			return obj ? compileTemplate(global, obj.to) : input;
 		}
 		
-		if (!(op && op.from instanceof Array && op.to instanceof Array))
+		if (!(args && args.from instanceof Array && args.to instanceof Array))
 			throw "$translate: invalid from/to argument";
 		
-		var idx = op.from.indexOf(data);
-		return idx != -1 ? compileTemplate(global, op.to[idx]) : data;
+		var idx = args.from.indexOf(input);
+		return idx != -1 ? compileTemplate(global, args.to[idx]) : input;
 	},
 	
-	$concat(op, data, global) {
-		return op.map(item => compileTemplate(global, item)).join("");
+	$join(input, args, global) {
+		return args.map(item => compileTemplate(global, item)).join("");
+	},
+
+	$concat(input, args, global) {
+		return [].concat(...args.map(item => compileTemplate(global, item)));
 	},
 	
-	$formatDate(op, data, global) {
-		return (new Date(data)).toLocaleString(op && op.locales, op && op.options);
+	$formatDate(input, args, global) {
+		return (new Date(input)).toLocaleString(args && args.locales, args && args.options);
 	},
 	
-	$formatNumber(op, data, global) {
-		return Number(data).toLocaleString(op && op.locales, op && op.options);
-	}	
+	$formatNumber(input, args, global) {
+		return Number(input).toLocaleString(args && args.locales, args && args.options);
+	},
+	
+	$parseNumber(input, args, global) {
+		input = String(input).replace(new RegExp(`\\s|[${(args && args.groupSymbol) || ","}]`, "g"), "");
+		if (args && args.decimalSymbol) input.replace(new RegExp(`[${args.decimalSymbol}]`, "g"), ".");
+		return Number(input);
+	},
+	
+	// Array
+	$map(input, args, global) {
+		if (!(input instanceof Array)) throw "$map: input is not an array";
+		return input.map(item => compileTemplate(item, args));
+	},
+
+	$filter(input, args, global) {
+		if (!(input instanceof Array)) throw "$filter: input is not an array";
+		return input.filter(item => processQuery(args, item));
+	},
+	
+	$push(input, args, global) {
+		if (!(input instanceof Array)) throw "$push: input is not an array";
+		return input.concat(compileTemplate(global, args));
+	},
+	
+	$unshift(input, args, global) {
+		if (!(input instanceof Array)) throw "$unshift: input is not an array";
+		return [ compileTemplate(global, args) ].concat(input);
+	},
+	
+	$reverse(input, args, global) {
+		if (!(input instanceof Array)) throw "$reverse: input is not an array";
+		return [].concat(input).reverse();
+	},
+
+	$sum(input, args, global) {
+		if (!(input instanceof Array)) throw "$sum: input is not an array";
+		return input.reduce((sum, cur) => sum + Number(cur), 0);
+	}
 };
 
-module.exports = compileTemplate;
+module.exports = JSLT;
