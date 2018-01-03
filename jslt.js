@@ -4,7 +4,7 @@ class JSLT {
 	}
 	
 	transform(data, template) {
-		return compileTemplate(data, template || this.template);
+		return JSLT.transform(data, template || this.template);
 	}
 	
 	setTemplate(template) {
@@ -12,7 +12,14 @@ class JSLT {
 	}
 	
 	static transform(data, template) {
-		return compileTemplate(data, arguments.length == 2 ? template : this.template);
+		errorStack = null;
+		var res = compileTemplate(data, arguments.length == 2 ? template : this.template);
+		if (errorStack) {
+			var ex = errorStack.reverse().join(".");
+			errorStack = null;
+			throw ex;
+		}
+		return res;
 	}
 };
 
@@ -26,10 +33,17 @@ function compileTemplate(data, template) {
 			return value.map(visit);
 		} else if (value instanceof Object) {
 			const entries = Object.entries(value);
+			
 			const ops = entries.filter(e => e[0].startsWith("$"));
-			return ops.length ?
-				processUpdate(ops, data) : 
-				entries.reduce((obj, [key, value]) => { return (obj[key] = visit(value)), obj; }, {});
+			if (ops.length) return processUpdate(ops, data);
+			
+			const obj = {};
+			for (var i = 0; i < entries.length; ++i) {
+				const [key, value] = entries[i];
+				obj[key] = visit(value);
+				if (errorStack) return error(key);
+			}
+			return obj;
 		} else {
 			return value;
 		}
@@ -54,18 +68,29 @@ function processQuery(query, data) {
 	return Object.entries(query).every(([fieldName, fieldValue]) => {
 		return Object.entries(fieldValue).every(([opName, opValue]) => {
 			const opFunc = QueryOperators[opName];
-			if (!opFunc) throw `Invalid query operator: ${opName}`;
+			if (!opFunc) return error(`${opName} - Unknown query operator`);
 			return opFunc(opValue, resolveProp(fieldName, data));
 		});
 	});
 }
 
 function processUpdate(ops, data) {
-	return ops.reduce((payload, [opName, opValue]) => {
+	var payload = data;
+	for (var i = 0; i < ops.length; ++i) {
+		const [opName, opValue] = ops[i];
 		const opFunc = UpdateOperators[opName] || UpdateOperators[opName.replace(/\d+$/, "")];
-		if (!opFunc) throw `Invalid operator: ${opName}`;
-		return opFunc(payload, opValue, data);
-	}, data);
+		if (!opFunc) return error(`${opName} - Unknown operator`);
+		payload = opFunc(payload, opValue, data);
+		if (errorStack) return error(opName);
+	}
+	return payload;
+}
+
+var errorStack = null;
+
+function error(err) {
+	if (errorStack) errorStack.push(err);
+	else errorStack = [ err ];
 }
 
 const QueryOperators = {
@@ -118,13 +143,14 @@ const UpdateOperators = {
 	
 	$translate(input, args, global) {
 		if (args instanceof Array) {
-			var obj = args.find(obj => obj.from == input);
+			var obj = args.find(obj => obj.from === input);
 			return obj ? compileTemplate(global, obj.to) : input;
 		}
 		
-		if (!(args && args.from instanceof Array && args.to instanceof Array))
-			throw "$translate: invalid from/to argument";
-		
+		if (!args) return error(" - Missing arguments");
+		if (!(args.from instanceof Array)) return error(`[from] - expected an array, but received ${typeof args.from}`);
+		if (!(args.to instanceof Array)) return error(`[to] - expected an array, but received ${typeof args.to}`);
+					
 		var idx = args.from.indexOf(input);
 		return idx != -1 ? compileTemplate(global, args.to[idx]) : input;
 	},
@@ -153,32 +179,36 @@ const UpdateOperators = {
 	
 	// Array
 	$map(input, args, global) {
-		if (!(input instanceof Array)) throw "$map: input is not an array";
-		return input.map(item => compileTemplate(item, args));
+		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
+		var newGlobal = Object.create(global);
+		return input.map(item => {
+			newGlobal.this = item;
+			return compileTemplate(newGlobal, args)
+		});
 	},
 
 	$filter(input, args, global) {
-		if (!(input instanceof Array)) throw "$filter: input is not an array";
+		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
 		return input.filter(item => processQuery(args, item));
 	},
 	
 	$push(input, args, global) {
-		if (!(input instanceof Array)) throw "$push: input is not an array";
+		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
 		return input.concat(compileTemplate(global, args));
 	},
 	
 	$unshift(input, args, global) {
-		if (!(input instanceof Array)) throw "$unshift: input is not an array";
+		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
 		return [ compileTemplate(global, args) ].concat(input);
 	},
 	
 	$reverse(input, args, global) {
-		if (!(input instanceof Array)) throw "$reverse: input is not an array";
+		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
 		return [].concat(input).reverse();
 	},
 
 	$sum(input, args, global) {
-		if (!(input instanceof Array)) throw "$sum: input is not an array";
+		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
 		return input.reduce((sum, cur) => sum + Number(cur), 0);
 	}
 };
