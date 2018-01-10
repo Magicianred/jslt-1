@@ -164,11 +164,11 @@ const UpdateOperators = {
 	},
 	
 	$formatDate(input, args, global) {
-		return (new Date(input)).toLocaleString(args && args.locales, args && args.options);
+		return (new Date(input)).toLocaleString(compileTemplate(global, args && args.locales), compileTemplate(global, args && args.options));
 	},
 	
 	$formatNumber(input, args, global) {
-		return Number(input).toLocaleString(args && args.locales, args && args.options);
+		return Number(input).toLocaleString(compileTemplate(global, args && args.locales), compileTemplate(global, args && args.options));
 	},
 	
 	$parseNumber(input, args, global) {
