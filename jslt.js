@@ -177,6 +177,28 @@ const UpdateOperators = {
 		return Number(input);
 	},
 	
+	$parseDate(input, args, global) {	
+		var tzRes = /^([\-\+])?(\d\d):?(\d\d)$/.exec(args.timezone);
+		if (!tzRes) return error(`[timezone] - invalid timezone: ${args.timezone}`);
+		var tzOffset = (Number(tzRes[2]) * 60 + Number(tzRes[3])) * (tzRes[1] == "-" ? -1 : 1);
+		
+		var format, day, month, year;
+		if (format = /^dd[\/.\- ]?MM[\/.\- ]?yyyy$/.exec(args.format)) {
+			[, day, month, year] = /^(\d{1,2})[\/.\- ]?(\d{1,2})[\/.\- ]?(\d{2,4})$/.exec(input) || [];
+		} else if (format = /^MM[\/.\- ]?dd[\/.\- ]?yyyy$/.exec(args.format)) {
+			[, month, day, year] = /^(\d{1,2})[\/.\- ]?(\d{1,2})[\/.\- ]?(\d{2,4})$/.exec(input) || [];
+		} else if (format = /^yyyy[\/.\- ]?MM[\/.\- ]?dd$/.exec(args.format)) {
+			[, year, month, day] = /^(\d{2,4})[\/.\- ]?(\d{1,2})[\/.\- ]?(\d{1,2})$/.exec(input) || [];
+		} else {
+			return error(`[format] - unsupported format: ${args.format}`);
+		}
+
+		day = Number(day), month = Number(month), year = Number(year);
+		if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 0)
+			return new Date(Date.UTC(year, month - 1, day) - (tzOffset * 60000));
+		return error(`[input] - invalid date: ${input}`);
+	},
+	
 	// Array
 	$map(input, args, global) {
 		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
