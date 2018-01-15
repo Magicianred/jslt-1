@@ -178,7 +178,7 @@ const UpdateOperators = {
 	},
 	
 	$parseDate(input, args, global) {	
-		var tzRes = /^([\-\+])?(\d\d):?(\d\d)$/.exec(args.timezone);
+		var tzRes = /^([\-\+])?(\d\d):?(\d\d)$/.exec(compileTemplate(global, args.timezone));
 		if (!tzRes) return error(`[timezone] - invalid timezone: ${args.timezone}`);
 		var tzOffset = (Number(tzRes[2]) * 60 + Number(tzRes[3])) * (tzRes[1] == "-" ? -1 : 1);
 		
