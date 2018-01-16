@@ -199,6 +199,20 @@ const UpdateOperators = {
 		return error(`[input] - invalid date: ${input}`);
 	},
 	
+	$replace(input, args, global) {
+		if (!(typeof args.newSubstr == "string")) return error(`[newSubstr] - missing / invalid`);
+		
+		var firstArg;
+		if (typeof args.substr == "string") firstArg = args.substr
+		else if (args.regexp instanceof RegExp) firstArg = args.regexp;
+		else if (typeof args.regexp == "string") {
+			try { firstArg = new RegExp(args.regexp, "g");
+			} catch(ex) { return error(`[regexp] - invalid expression`); }
+		} else return error(`[substr/regexp] - missing or invalid`);
+		
+		return String(input).replace(firstArg, args.newSubstr);
+	},
+	
 	// Array
 	$map(input, args, global) {
 		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
