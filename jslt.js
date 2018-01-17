@@ -65,13 +65,18 @@ function resolveProp(name, scope) {
 }
 
 function processQuery(query, data) {
-	return Object.entries(query).every(([fieldName, fieldValue]) => {
-		return Object.entries(fieldValue).every(([opName, opValue]) => {
+	function checkConds(entries, value) {
+		return entries.every(([opName, opValue]) => {
 			const opFunc = QueryOperators[opName];
 			if (!opFunc) return error(`${opName} - Unknown query operator`);
-			return opFunc(opValue, resolveProp(fieldName, data));
+			return opFunc(opValue, value);
 		});
-	});
+	}
+		
+	const entries = Object.entries(query);
+	const ops = entries.filter(e => e[0].startsWith("$"));
+	if (ops.length) return checkConds(ops, data);
+	return entries.every(([fieldName, fieldValue]) => checkConds(Object.entries(fieldValue), resolveProp(fieldName, data)));
 }
 
 function processUpdate(ops, data) {
@@ -103,19 +108,19 @@ const QueryOperators = {
 	},
 	
 	$gt(expected, actual) {
-		return expected > actual;
+		return actual > expected;
 	},
 	
 	$lt(expected, actual) {
-		return expected < actual;
+		return actual < expected;
 	},
 	
 	$gte(expected, actual) {
-		return expected >= actual;
+		return actual >= expected;
 	},
 	
 	$lte(expected, actual) {
-		return expected <= actual;
+		return actual <= expected;
 	},
 	
 	$in(expected, actual) {
@@ -143,7 +148,7 @@ const UpdateOperators = {
 	
 	$translate(input, args, global) {
 		if (args instanceof Array) {
-			var obj = args.find(obj => obj.from === input);
+			var obj = args.find(obj => typeof obj.from == "object" && obj.from !== null ? processQuery(obj.from, input) : obj.from === input);
 			return obj ? compileTemplate(global, obj.to) : input;
 		}
 		
