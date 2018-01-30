@@ -31,7 +31,7 @@ function compileTemplate(data, template) {
 			return value.replace(/{{([^}]+)}}/g, (str, p1) => resolveProp(p1, data));
 		} else if (value instanceof Array) {
 			return value.map(visit);
-		} else if (value instanceof Object) {
+		} else if (value instanceof Object && !(value instanceof RegExp)) {
 			const entries = Object.entries(value);
 			
 			const ops = entries.filter(e => e[0].startsWith("$"));
@@ -69,7 +69,7 @@ function processQuery(query, data) {
 		return entries.every(([opName, opValue]) => {
 			const opFunc = QueryOperators[opName];
 			if (!opFunc) return error(`${opName} - Unknown query operator`);
-			return opFunc(opValue, value);
+			return opFunc(compileTemplate(data, opValue), value);
 		});
 	}
 		
@@ -148,8 +148,10 @@ const UpdateOperators = {
 	
 	$translate(input, args, global) {
 		if (args instanceof Array) {
-			var obj = args.find(obj => typeof obj.from == "object" && obj.from !== null ? processQuery(obj.from, input) : obj.from === input);
-			return obj ? compileTemplate(global, obj.to) : input;
+			var obj = args.find(obj => typeof obj.from == "object" && obj.from !== null ?
+				processQuery(obj.from, input) :
+				(obj.hasOwnProperty("default") || obj.from === input));
+			return obj ? compileTemplate(global, obj.hasOwnProperty("default") ? obj.default : obj.to) : input;
 		}
 		
 		if (!args) return error(" - Missing arguments");

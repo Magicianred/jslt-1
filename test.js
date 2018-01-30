@@ -16,7 +16,14 @@ var data = {
 	obj : {
 		stringField : "Nested testString",
 		numberField : 1234
-	}
+	},
+	
+	approver : "Bob",
+	complexArray : [
+		{ from : "Alice", status : "approved" },
+		{ from : "Bob", status : "pending" },
+		{ from : "Charlie", status : "pending" }
+	]
 };
 
 function test(name, template, expected) {
@@ -24,7 +31,7 @@ function test(name, template, expected) {
 	var success = JSON.stringify(res) == JSON.stringify(expected);
 	success ? ++passed : ++failed;
 	console.log(`${name}: ${success ? "Passed" : "FAILED"}`);
-	if (!success) console.log(JSON.stringify(res));
+	if (!success) console.log(JSON.stringify(res, null, 2));
 }
 
 var passed = 0, failed = 0;
@@ -101,5 +108,23 @@ test("$parseDate", { $fetch : "07-16-2015", $parseDate : { format : "MM/dd/yyyy"
 test("$replace substr", { $fetch : "test str", $replace : { substr : "str", newSubstr : "new" } }, "test new");
 test("$replace regexp", { $fetch : "test 123", $replace : { regexp : /\d+/, newSubstr : "" } }, "test ");
 test("$replace regexp string", { $fetch : "test 123", $replace : { regexp : "\\d+", newSubstr : "" } }, "test ");
+
+test("zzzz", {
+	$fetch : "{{complexArray}}",
+	$map : {
+		from : "{{this.from}}",
+		position : {
+			$translate : [
+				{ from : { "this.status" : { $in : [ "approved" ] } }, to : "prev" },
+				{ from : { "this.from" : { $eq : "{{approver}}" }  }, to : "self" },
+				{ default : "next" }
+			]
+		}
+	}
+}, [
+	{ from : "Alice", position : "prev" },
+	{ from : "Bob", position : "self" },
+	{ from : "Charlie", position : "next" }
+]);
 
 console.log(`Passed: ${passed} Failed: ${failed}`);
