@@ -2,12 +2,30 @@
 
 ```js
 var jslt = require("jslt");
-jslt.transform({ field1: 10 }, { outputField: "{{field1}}" });
+jslt.transform({ 
+    firstName: "Chandler",
+    lastName: "Bing",
+    married: true,
+  }, {
+    fullName: "{{lastName}}, {{firstName}}",
+    status: {
+      $fetch: "{{married}}",
+      $translate: [
+        { from: true, to: "Married" },
+        { default: "Single" }
+      ]
+    }
+  }
+);
 ```
 
 ## Table of contents
+- Transformation basics
+- Placeholder replacement
+- Update rules
 
 - Update operators:
+  - [$join](#join)
   - [$concat](#concat)
   - [$formatDate](#formatDate)
   - [$formatNumber](#formatNumber)
@@ -32,6 +50,20 @@ jslt.transform({ field1: 10 }, { outputField: "{{field1}}" });
   - [$in](#in)
   - [$nin](#nin)
   - [$regex](#regex)
+
+## Transformation basics
+When transforming an object, the properties in the template are recursivly traversed and their output values are determined using the following rules:
+1. If the template value is a string containing placeholders, they are replaced according to the placeholder replacement rules.
+2. If the template value is an object that at least one of its properties starts with a dollar sign, the object is processed using the update rules.
+3. Otherwise the template value is copied to the output.
+
+## Placeholder replacement
+Placeholders are defined using double curly braces (`{{name}}`). The text inside is interpreted as the name of a property in the object being transformed. The result of the placeholder is the value of the same named property in the object being transformed. Nested properties can be accessed using a dot notation (e.g. `{{prop1.prop2}}`). 
+
+If a string contains a single placeholder without any other character, the returned value will be of the same type as the original value. Otherwise, it will be converted into a string.
+
+## Update rules
+Operators are processed in the order they are defined in the object. The output of the first operator becomes the input for the second operator and so forth. If an operator needs to be repeated more than once in the same object, a number can be added to its name (e.g. `$translate2`).
 
 ## Update operators
 
