@@ -4,11 +4,27 @@
 
 ### $fetch
 
+* `Input` None
+* `Parameters` \<Any\>
+* `Output` \<Any\>
+
 ### $translate
+
+* `Input` \<Any\>
+* `Parameters` \<Array\>
+* `Output` \<Any\>
 
 ### $join
 
+* `Input` None
+* `Parameters` \<Array\>
+* `Output` \<String\>
+
 ### $concat
+
+* `Input` None
+* `Parameters` \<Array\>
+* `Output` \<Array\>
 
 ### $formatDate
 Returns a string with a language sensitive representation of the input date. See [Date.prototype.toLocaleString()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString) documentation for more information.
@@ -54,11 +70,29 @@ Returns a new string with some or all matches of a pattern replaced by a new str
 
 ### $map
 
+* `Input` \<Array\>
+* `Parameters` \<Any\>
+* `Output` \<Array\>
+
 ### $filter
 
-### $push
+* `Input` \<Array\>
+* `Parameters` \<Any\>
+* `Output` \<Array\>
 
+### $push
+Adds an element to the end of an array.
+
+* `Input` \<Array\>
+* `Parameters` \<Any\> The element to add
+* `Output` \<Array\>
+ 
 ### $unshift
+Adds an element to the beginning of an array.
+
+* `Input` \<Array\>
+* `Parameters` \<Any\> The element to add
+* `Output` \<Array\>
 
 ### $reverse
 Reverses an array.
@@ -68,3 +102,20 @@ Reverses an array.
 * `Output` \<Array\>
 
 ### $sum
+Returns the sum of all the elements in an array.
+
+* `Input` \<Array\>
+* `Parameters` None
+* `Output` \<Number\>
+
+## Query operators
+
+### $eq
+### $nq
+### $gt
+### $lt
+### $gte
+### $lte
+### $in
+### $nin
+### $regex
