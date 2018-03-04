@@ -29,9 +29,12 @@ function compileTemplate(data, template) {
 			var res = /^{{([^}]+)}}$/.exec(value);
 			if (res) return resolveProp(res[1], data);
 			return value.replace(/{{([^}]+)}}/g, (str, p1) => resolveProp(p1, data));
-		} else if (value instanceof Array) {
+		}
+		
+		if (value instanceof Array)
 			return value.map(visit);
-		} else if (value instanceof Object && !(value instanceof RegExp)) {
+		
+		if (value instanceof Object && !(value instanceof RegExp)) {
 			const entries = Object.entries(value);
 			
 			const ops = entries.filter(e => e[0].startsWith("$"));
@@ -44,9 +47,9 @@ function compileTemplate(data, template) {
 				if (errorStack) return error(key);
 			}
 			return obj;
-		} else {
-			return value;
 		}
+		
+		return value;
 	}
 
 	return visit(template);
@@ -64,19 +67,19 @@ function resolveProp(name, scope) {
 	return scope;
 }
 
-function processQuery(query, data) {
+function processQuery(query, self, global) {
 	function checkConds(entries, value) {
 		return entries.every(([opName, opValue]) => {
 			const opFunc = QueryOperators[opName];
 			if (!opFunc) return error(`${opName} - Unknown query operator`);
-			return opFunc(compileTemplate(data, opValue), value);
+			return opFunc(compileTemplate(global, opValue), value);
 		});
 	}
 		
 	const entries = Object.entries(query);
 	const ops = entries.filter(e => e[0].startsWith("$"));
-	if (ops.length) return checkConds(ops, data);
-	return entries.every(([fieldName, fieldValue]) => checkConds(Object.entries(fieldValue), resolveProp(fieldName, data)));
+	if (ops.length) return checkConds(ops, self);
+	return entries.every(([fieldName, fieldValue]) => checkConds(Object.entries(fieldValue), resolveProp(fieldName, self)));
 }
 
 function processUpdate(ops, data) {
@@ -149,7 +152,7 @@ const UpdateOperators = {
 	$translate(input, args, global) {
 		if (args instanceof Array) {
 			var obj = args.find(obj => typeof obj.from == "object" && obj.from !== null ?
-				processQuery(obj.from, input) :
+				processQuery(obj.from, input, global) :
 				(obj.hasOwnProperty("default") || obj.from === input));
 			return obj ? compileTemplate(global, obj.hasOwnProperty("default") ? obj.default : obj.to) : input;
 		}
@@ -232,7 +235,11 @@ const UpdateOperators = {
 
 	$filter(input, args, global) {
 		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
-		return input.filter(item => processQuery(args, item));
+		var newGlobal = Object.create(global);
+		return input.filter(item => {
+			newGlobal.this = item;
+			return processQuery(args, item, newGlobal);
+		});
 	},
 	
 	$push(input, args, global) {
