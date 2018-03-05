@@ -56,7 +56,10 @@ function compileTemplate(data, template) {
 }
 
 function resolveProp(name, scope) {
-	const parts = name.split(".");
+	var name2 = name.replace(/\\\./g, "jsltDotNotSep");
+	var parts = name2.split(".");
+	if (name != name2) parts = parts.map(p => p.replace(/jsltDotNotSep/g, "."));
+	
 	for (var i = 0; i < parts.length; ++i) {
 		var [, name, index] = /^([^[]+)(?:\[(\d+)\])?$/.exec(parts[i]);
 		scope = scope[name];

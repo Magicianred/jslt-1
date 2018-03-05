@@ -15,9 +15,10 @@ var globalData = {
 	],
 	obj : {
 		stringField : "Nested testString",
-		numberField : 1234
+		numberField : 1234,
+		"first.last": "value2",
 	},
-	
+	"first.last" : "value",
 	approver : "Bob",
 	complexArray : [
 		{ from : "Alice", status : "approved" },
@@ -51,6 +52,8 @@ test("Identity transform - undefined", "{{stringField1}}", undefined);
 test("Transform strings", "{{stringField}} {{stringField}}", "testString testString");
 test("Nested transform", "{{obj.stringField}}", "Nested testString");
 test("Array transform", "{{array[1].numberField}}", 2);
+test("Dot transform", "{{first\\.last}}", "value");
+test("Dot + nested transform", "{{obj.first\\.last}}", "value2");
 
 test("$fetch", { $fetch : "{{stringField}}" }, "testString");
 test("$fetch cascaded", { $fetch : "{{obj}}", $fetch2 : "{{stringField}}" }, "Nested testString");
