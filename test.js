@@ -19,6 +19,7 @@ var globalData = {
 		"first.last": "value2",
 	},
 	"first.last" : "value",
+	"prop[withBracket" : "value2",
 	approver : "Bob",
 	complexArray : [
 		{ from : "Alice", status : "approved" },
@@ -54,6 +55,8 @@ test("Nested transform", "{{obj.stringField}}", "Nested testString");
 test("Array transform", "{{array[1].numberField}}", 2);
 test("Dot transform", "{{first\\.last}}", "value");
 test("Dot + nested transform", "{{obj.first\\.last}}", "value2");
+test("Dot transform", "{{prop\\[withBracket}}", "value2");
+test("Bracket transform", "{{obj[stringField]}}", "Nested testString");
 
 test("$fetch", { $fetch : "{{stringField}}" }, "testString");
 test("$fetch cascaded", { $fetch : "{{obj}}", $fetch2 : "{{stringField}}" }, "Nested testString");
@@ -97,6 +100,9 @@ test("$filter - object - transform", { $fetch : "{{array}}", $filter : { numberF
 
 test("$reverse", [ "aaa", "bbb", "ccc" ], { $reverse : {} }, [ "ccc", "bbb", "aaa" ]);
 test("$reverse - map - transform", { $fetch : "{{array}}", $reverse : {}, $map : "{{this.stringField}}" }, [ "array3", "array2", "array1" ]);
+
+test("$find - simple", [ 1, 2, 3, 4 ], { $find : { $eq : 3 } }, 3);
+test("$find - multi", [ 1, 2, 3, 4 ], { $find : { $gt : 2 } }, 3);
 
 test("$parseNumber", "123.0", { $parseNumber : {} }, 123);
 test("$parseNumber groupSymbol", "123.0", { $parseNumber : { groupSymbol : "." } }, 1230);

@@ -56,16 +56,24 @@ function compileTemplate(data, template) {
 }
 
 function resolveProp(name, scope) {
-	var name2 = name.replace(/\\\./g, "jsltDotNotSep");
-	var parts = name2.split(".");
-	if (name != name2) parts = parts.map(p => p.replace(/jsltDotNotSep/g, "."));
+	const name2 = name.replace(/\\(\.|\[|\])/g, (str, p1) => String.fromCodePoint(p1.codePointAt(0) + 0xE000));
+	const parts = name2.split("."), hasSpecialChars = name != name2;
 	
 	for (var i = 0; i < parts.length; ++i) {
-		var [, name, index] = /^([^[]+)(?:\[(\d+)\])?$/.exec(parts[i]);
-		scope = scope[name];
+		var reRes = /^([^[]+)(?:\[([^\]]+)\])?$/.exec(parts[i]);
+		var propName = reRes ? reRes[1] : parts[i];
+		
+		if (hasSpecialChars)
+			propName = propName.replace(/[\uE000-\uF000]/g, str => String.fromCodePoint(str.codePointAt(0) - 0xE000));
+		
+		scope = scope[propName];
 		if (!scope) return scope;
-		if (index !== undefined) scope = scope[index];
-		if (!scope) return scope;
+		
+		if (reRes && reRes[2]) {
+			const bracketName = hasSpecialChars ? reRes[2].replace(/[\uE000-\uF000]/g, s => String.fromCodePoint(s.codePointAt(0) - 0xE000)) : reRes[2];
+			scope = scope[bracketName];
+			if (!scope) return scope;
+		}
 	}
 	return scope;
 }
@@ -161,8 +169,8 @@ const UpdateOperators = {
 		}
 		
 		if (!args) return error(" - Missing arguments");
-		if (!(args.from instanceof Array)) return error(`[from] - expected an array, but received ${typeof args.from}`);
-		if (!(args.to instanceof Array)) return error(`[to] - expected an array, but received ${typeof args.to}`);
+		if (!(args.from instanceof Array)) return error(`[from] - Expected an array, but received ${typeof args.from}`);
+		if (!(args.to instanceof Array)) return error(`[to] - Expected an array, but received ${typeof args.to}`);
 					
 		var idx = args.from.indexOf(input);
 		return idx != -1 ? compileTemplate(global, args.to[idx]) : input;
@@ -228,40 +236,53 @@ const UpdateOperators = {
 	
 	// Array
 	$map(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
-		var newGlobal = Object.create(global);
-		return input.map(item => {
-			newGlobal.this = item;
-			return compileTemplate(newGlobal, args)
-		});
+		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		var newGlobal = Object.create(global), retVal = [];
+		for (var i = 0; i < input.length; ++i) {
+			newGlobal.this = input[i];
+			retVal.push(compileTemplate(newGlobal, args));
+			if (errorStack) return error(`[${i}]`);
+		}
+		return retVal;
 	},
 
 	$filter(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		var newGlobal = Object.create(global), retVal = [];
+		for (var i = 0; i < input.length; ++i) {
+			newGlobal.this = input[i];
+			if (processQuery(args, input[i], newGlobal)) retVal.push(input[i]);
+			if (errorStack) return error(`[${i}]`);
+		}
+		return retVal;
+	},
+	
+	$push(input, args, global) {
+		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		return input.concat(compileTemplate(global, args));
+	},
+	
+	$unshift(input, args, global) {
+		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		return [ compileTemplate(global, args) ].concat(input);
+	},
+	
+	$reverse(input, args, global) {
+		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		return [].concat(input).reverse();
+	},
+	
+	$find(input, args, global) {
+		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
 		var newGlobal = Object.create(global);
-		return input.filter(item => {
+		return input.find(item => {
 			newGlobal.this = item;
 			return processQuery(args, item, newGlobal);
 		});
 	},
 	
-	$push(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
-		return input.concat(compileTemplate(global, args));
-	},
-	
-	$unshift(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
-		return [ compileTemplate(global, args) ].concat(input);
-	},
-	
-	$reverse(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
-		return [].concat(input).reverse();
-	},
-
 	$sum(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
 		return input.reduce((sum, cur) => sum + Number(cur), 0);
 	}
 };
