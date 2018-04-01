@@ -57,6 +57,7 @@ test("Dot transform", "{{first\\.last}}", "value");
 test("Dot + nested transform", "{{obj.first\\.last}}", "value2");
 test("Dot transform", "{{prop\\[withBracket}}", "value2");
 test("Bracket transform", "{{obj[stringField]}}", "Nested testString");
+test("Empty transform", 2, "{{}}", 2);
 
 test("$fetch", { $fetch : "{{stringField}}" }, "testString");
 test("$fetch cascaded", { $fetch : "{{obj}}", $fetch2 : "{{stringField}}" }, "Nested testString");
@@ -97,6 +98,9 @@ test("$filter - regex string", [ "aaa", "bbb", "ccc" ], { $filter : { $regex : "
 test("$filter - object", { $fetch : "{{array}}", $filter : { numberField : { $eq : 2 } } }, [{ stringField : "array2", numberField : 2 }]);
 test("$filter - object - multi", { $fetch : "{{array}}", $filter : { numberField : { $eq : 2 }, stringField : { $eq : "array2" } } }, [{ stringField : "array2", numberField : 2 }]);
 test("$filter - object - transform", { $fetch : "{{array}}", $filter : { numberField : { $gt : "{{numberField}}" } } }, [{ stringField : "array3", numberField : 15 }]);
+test("$filter - type", [ 1, "2", true, {} ], { $filter : { $type : "number" } }, [ 1 ]);
+test("$filter - type - array", [ 1, "2", true, {} ], { $filter : { $type : [ "number", "string" ] } }, [ 1, "2" ]);
+test("$filter - type", [ 1, [], {} ], { $filter : { $type : "array" } }, [ [] ]);
 
 test("$reverse", [ "aaa", "bbb", "ccc" ], { $reverse : {} }, [ "ccc", "bbb", "aaa" ]);
 test("$reverse - map - transform", { $fetch : "{{array}}", $reverse : {}, $map : "{{this.stringField}}" }, [ "array3", "array2", "array1" ]);

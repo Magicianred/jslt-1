@@ -26,7 +26,7 @@ class JSLT {
 function compileTemplate(data, template) {
 	function visit(value) {
 		if (typeof value == "string") {
-			var res = /^{{([^}]+)}}$/.exec(value);
+			var res = /^{{([^}]*)}}$/.exec(value);
 			if (res) return resolveProp(res[1], data);
 			return value.replace(/{{([^}]+)}}/g, (str, p1) => resolveProp(p1, data));
 		}
@@ -56,6 +56,8 @@ function compileTemplate(data, template) {
 }
 
 function resolveProp(name, scope) {
+	if (scope === undefined || scope === null || !name) return scope;
+	
 	const name2 = name.replace(/\\(\.|\[|\])/g, (str, p1) => String.fromCodePoint(p1.codePointAt(0) + 0xE000));
 	const parts = name2.split("."), hasSpecialChars = name != name2;
 	
@@ -152,6 +154,15 @@ const QueryOperators = {
 		if (typeof expected !== "string") throw "$regex: invalid expression";
 		var re = new RegExp(expected);
 		return re.test(actual);
+	},
+	
+	$type(expected, actual) {
+		var type = typeof actual;
+		if (type === "object") {
+			if (actual === null) type = null;
+			else if (actual instanceof Array) type = "array";
+		}
+		return expected instanceof Array ? expected.includes(type) : type == expected ;
 	}
 };
 
