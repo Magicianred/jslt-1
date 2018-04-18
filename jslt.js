@@ -12,11 +12,11 @@ class JSLT {
 	}
 	
 	static transform(data, template) {
-		errorStack = null;
+		lastError = null;
 		var res = compileTemplate(data, arguments.length == 2 ? template : this.template);
-		if (errorStack) {
-			var ex = errorStack.reverse().join(".");
-			errorStack = null;
+		if (lastError) {
+			var ex = lastError.stack.reverse().join(".");
+			lastError = null;
 			throw ex;
 		}
 		return res;
@@ -44,7 +44,7 @@ function compileTemplate(data, template) {
 			for (var i = 0; i < entries.length; ++i) {
 				const [key, value] = entries[i];
 				obj[key] = visit(value);
-				if (errorStack) return error(key);
+				if (lastError) return error(key);
 			}
 			return obj;
 		}
@@ -84,7 +84,7 @@ function processQuery(query, self, global) {
 	function checkConds(entries, value) {
 		return entries.every(([opName, opValue]) => {
 			const opFunc = QueryOperators[opName];
-			if (!opFunc) return error(`${opName} - Unknown query operator`);
+			if (!opFunc) return error(opName, "Unknown query operator");
 			return opFunc(compileTemplate(global, opValue), value);
 		});
 	}
@@ -100,18 +100,31 @@ function processUpdate(ops, data) {
 	for (var i = 0; i < ops.length; ++i) {
 		const [opName, opValue] = ops[i];
 		const opFunc = UpdateOperators[opName] || UpdateOperators[opName.replace(/\d+$/, "")];
-		if (!opFunc) return error(`${opName} - Unknown operator`);
-		payload = opFunc(payload, opValue, data);
-		if (errorStack) return error(opName);
+		
+		if (opFunc) payload = opFunc(payload, opValue, data);
+		else error(opName, "Unknown operator");
+		
+		if (lastError) {
+			for (++i; i < ops.length; ++i) {
+				if (ops[i][0].replace(/\d+$/, "") == "$catch") {
+					var exception = { message : lastError.message, stack : lastError.stack.reverse().join(".") };
+					lastError = null;
+					payload = compileTemplate(exception, ops[i][1]);
+					if (lastError) continue;
+					else break;
+				}
+			}
+			if (lastError) return error(opName);
+		}
 	}
 	return payload;
 }
 
-var errorStack = null;
+var lastError = null;
 
-function error(err) {
-	if (errorStack) errorStack.push(err);
-	else errorStack = [ err ];
+function error(prop, message) {
+	if (lastError) lastError.stack.push(prop);
+	else lastError = { stack : [ prop ], message };
 }
 
 const QueryOperators = {
@@ -171,6 +184,10 @@ const UpdateOperators = {
 		return compileTemplate(input, args);
 	},
 	
+	$catch(input, args, global) {
+		return input;
+	},
+	
 	$translate(input, args, global) {
 		if (args instanceof Array) {
 			var obj = args.find(obj => typeof obj.from == "object" && obj.from !== null ?
@@ -179,10 +196,10 @@ const UpdateOperators = {
 			return obj ? compileTemplate(global, obj.hasOwnProperty("default") ? obj.default : obj.to) : input;
 		}
 		
-		if (!args) return error(" - Missing arguments");
-		if (!(args.from instanceof Array)) return error(`[from] - Expected an array, but received ${typeof args.from}`);
-		if (!(args.to instanceof Array)) return error(`[to] - Expected an array, but received ${typeof args.to}`);
-					
+		if (!args) return error("[args]", "Missing arguments");
+		if (!(args.from instanceof Array)) return error("[from]", `Expected an array, but received ${typeof args.from}`);
+		if (!(args.to instanceof Array)) return error("[to]", `Expected an array, but received ${typeof args.to}`);
+		
 		var idx = args.from.indexOf(input);
 		return idx != -1 ? compileTemplate(global, args.to[idx]) : input;
 	},
@@ -211,7 +228,7 @@ const UpdateOperators = {
 	
 	$parseDate(input, args, global) {	
 		var tzRes = /^([\-\+])?(\d\d):?(\d\d)$/.exec(compileTemplate(global, args.timezone));
-		if (!tzRes) return error(`[timezone] - invalid timezone: ${args.timezone}`);
+		if (!tzRes) return error("[timezone]", `invalid timezone: ${args.timezone}`);
 		var tzOffset = (Number(tzRes[2]) * 60 + Number(tzRes[3])) * (tzRes[1] == "-" ? -1 : 1);
 		
 		var format, day, month, year;
@@ -222,69 +239,69 @@ const UpdateOperators = {
 		} else if (format = /^yyyy[\/.\- ]?MM[\/.\- ]?dd$/.exec(args.format)) {
 			[, year, month, day] = /^(\d{2,4})[\/.\- ]?(\d{1,2})[\/.\- ]?(\d{1,2})$/.exec(input) || [];
 		} else {
-			return error(`[format] - unsupported format: ${args.format}`);
+			return error("[format]", `unsupported format: ${args.format}`);
 		}
 
 		day = Number(day), month = Number(month), year = Number(year);
 		if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 0)
 			return new Date(Date.UTC(year, month - 1, day) - (tzOffset * 60000));
-		return error(`[input] - invalid date: ${input}`);
+		return error("[input]", `invalid date: ${input}`);
 	},
 	
 	$replace(input, args, global) {
-		if (!(typeof args.newSubstr == "string")) return error(`[newSubstr] - missing / invalid`);
+		if (!(typeof args.newSubstr == "string")) return error("[newSubstr]", "missing / invalid");
 		
 		var firstArg;
 		if (typeof args.substr == "string") firstArg = args.substr
 		else if (args.regexp instanceof RegExp) firstArg = args.regexp;
 		else if (typeof args.regexp == "string") {
 			try { firstArg = new RegExp(args.regexp, "g");
-			} catch(ex) { return error(`[regexp] - invalid expression`); }
-		} else return error(`[substr/regexp] - missing or invalid`);
+			} catch(ex) { return error("[regexp]", "invalid expression"); }
+		} else return error("[substr/regexp]", "missing or invalid");
 		
 		return String(input).replace(firstArg, args.newSubstr);
 	},
 	
 	// Array
 	$map(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
 		var newGlobal = Object.create(global), retVal = [];
 		for (var i = 0; i < input.length; ++i) {
 			newGlobal.this = input[i];
 			retVal.push(compileTemplate(newGlobal, args));
-			if (errorStack) return error(`[${i}]`);
+			if (lastError) return error(`[${i}]`);
 		}
 		return retVal;
 	},
 
 	$filter(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
 		var newGlobal = Object.create(global), retVal = [];
 		for (var i = 0; i < input.length; ++i) {
 			newGlobal.this = input[i];
 			if (processQuery(args, input[i], newGlobal)) retVal.push(input[i]);
-			if (errorStack) return error(`[${i}]`);
+			if (lastError) return error(`[${i}]`);
 		}
 		return retVal;
 	},
 	
 	$push(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
 		return input.concat(compileTemplate(global, args));
 	},
 	
 	$unshift(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
 		return [ compileTemplate(global, args) ].concat(input);
 	},
 	
 	$reverse(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
 		return [].concat(input).reverse();
 	},
 	
 	$find(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
 		var newGlobal = Object.create(global);
 		return input.find(item => {
 			newGlobal.this = item;
@@ -293,7 +310,7 @@ const UpdateOperators = {
 	},
 	
 	$sum(input, args, global) {
-		if (!(input instanceof Array)) return error(`[input] - Expected an array, but received ${typeof input}`);
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
 		return input.reduce((sum, cur) => sum + Number(cur), 0);
 	}
 };

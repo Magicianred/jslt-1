@@ -129,4 +129,14 @@ test("$replace substr", "test str", { $replace : { substr : "str", newSubstr : "
 test("$replace regexp", "test 123", { $replace : { regexp : /\d+/, newSubstr : "" } }, "test ");
 test("$replace regexp string", "test 123", { $replace : { regexp : "\\d+", newSubstr : "" } }, "test ");
 
+test("$catch - no error", { prop : "test" }, { $fetch : "{{prop}}", $catch : {} }, "test");
+test("$catch - error", "test", { $map : {}, $catch : "error" }, "error");
+test("$catch - error props", "test", { $map : {}, $catch : "{{stack}} - {{message}}" }, "[input] - Expected an array, but received string");
+test("$catch - error & skip", "test", { $map : {}, $filter : {}, $catch : "error" }, "error");
+test("$catch - multi catch1", { prop : "test" }, { $fetch : "{{prop}}", $catch : "error1", $map : {}, $catch2 : "error2" }, "error2");
+test("$catch - multi catch2", { prop : "test" }, { $fetch : "{{prop}}", $map : {}, $catch : "error1", $catch2 : "error2" }, "error1");
+test("$catch - nested", { prop : [ 1 ] }, { prop1 : { $fetch : "{{prop}}", $map : { $map : {} }, $catch : "error" } }, { prop1 : "error" });
+test("$catch - array", [ [], 2, [] ], { $map : { p : { $fetch : "{{this}}", $map : "a", $catch : "not array" } } }, [ { p : [] }, { p : "not array" }, { p : [] }]);
+test("$catch - catch with error", "test", { $map : {}, $catch : { $map : {} }, $catch2 : "catch2" }, "catch2");
+
 console.log(`\nPassed: ${passed} Failed: ${failed}`);
