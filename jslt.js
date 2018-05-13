@@ -15,7 +15,7 @@ class JSLT {
 		lastError = null;
 		var res = compileTemplate(data, arguments.length == 2 ? template : this.template);
 		if (lastError) {
-			var ex = lastError.stack.reverse().join(".");
+			var ex = lastError.stack.reverse().join(".") + " - " + lastError.message;
 			lastError = null;
 			throw ex;
 		}
@@ -58,8 +58,9 @@ function compileTemplate(data, template) {
 function resolveProp(name, scope) {
 	if (scope === undefined || scope === null || !name) return scope;
 	
-	const name2 = name.replace(/\\(\.|\[|\])/g, (str, p1) => String.fromCodePoint(p1.codePointAt(0) + 0xE000));
-	const parts = name2.split("."), hasSpecialChars = name != name2;
+	const [, nameWithoutType, maybe, type ] = /(.*?)(?::(\?)?(string|number|boolean|array|object|date))?$/.exec(name);
+	const nameWithSpecialChars = nameWithoutType.replace(/\\(\.|\[|\])/g, (str, p1) => String.fromCodePoint(p1.codePointAt(0) + 0xE000));
+	const parts = nameWithSpecialChars.split("."), hasSpecialChars = name != nameWithSpecialChars;
 	
 	for (var i = 0; i < parts.length; ++i) {
 		var reRes = /^([^[]+)(?:\[([^\]]+)\])?$/.exec(parts[i]);
@@ -69,13 +70,18 @@ function resolveProp(name, scope) {
 			propName = propName.replace(/[\uE000-\uF000]/g, str => String.fromCodePoint(str.codePointAt(0) - 0xE000));
 		
 		scope = scope[propName];
-		if (!scope) return scope;
+		if (!scope) break;
 		
 		if (reRes && reRes[2]) {
 			const bracketName = hasSpecialChars ? reRes[2].replace(/[\uE000-\uF000]/g, s => String.fromCodePoint(s.codePointAt(0) - 0xE000)) : reRes[2];
 			scope = scope[bracketName];
 			if (!scope) return scope;
 		}
+	}
+	
+	if (type) {
+		if (scope === undefined) return maybe ? undefined : error(`{{${nameWithoutType}}}`, "Missing required value");
+		return verifyType(nameWithoutType, type, scope);
 	}
 	return scope;
 }
@@ -125,6 +131,26 @@ var lastError = null;
 function error(prop, message) {
 	if (lastError) lastError.stack.push(prop);
 	else lastError = { stack : [ prop ], message };
+}
+
+function verifyType(propName, type, value) {
+	var actualType = typeof value;
+	if (actualType === "object") {
+		if (value === null) actualType = "null";
+		else if (value instanceof Array) actualType = "array";
+		else if (value instanceof Date) actualType = "date";
+	}
+
+	if (type == actualType) return value;
+	if (type == "string" && actualType == "number") return String(value);
+	if (type == "number" && actualType == "string" && !isNaN(Number(value))) return Number(value);
+	if (type == "date" && actualType == "string") {
+		let date = new Date(value);
+		if (date.toJSON() === value) return date;
+	}
+	
+	error(`{{${propName}}}`, `Expected ${type}, but received ${actualType}`);
+	return null;
 }
 
 const QueryOperators = {

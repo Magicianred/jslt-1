@@ -1,6 +1,6 @@
 {
   "name": "jslt",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "JSON transformer",
   "main": "jslt.js",
   "repository": {

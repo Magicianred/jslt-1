@@ -30,7 +30,11 @@ var globalData = {
 
 function test(name, data, template, expected) {
 	if (arguments.length == 3) [ data, template, expected ] = [ globalData, data, template ];
-	var res = jslt.transform(data, template);
+	try {
+		var res = jslt.transform(data, template);
+	} catch(ex) {
+		res = ex;
+	}
 	var success = JSON.stringify(res) == JSON.stringify(expected);
 	success ? ++passed : ++failed;
 	console.log(`${name.padEnd(40)} ${success ? "Passed" : "FAILED  " + JSON.stringify(res)}`);
@@ -139,4 +143,24 @@ test("$catch - nested", { prop : [ 1 ] }, { prop1 : { $fetch : "{{prop}}", $map 
 test("$catch - array", [ [], 2, [] ], { $map : { p : { $fetch : "{{this}}", $map : "a", $catch : "not array" } } }, [ { p : [] }, { p : "not array" }, { p : [] }]);
 test("$catch - catch with error", "test", { $map : {}, $catch : { $map : {} }, $catch2 : "catch2" }, "catch2");
 
-console.log(`\nPassed: ${passed} Failed: ${failed}`);
+test("type - number - pass", { prop : 3 }, { p : "{{prop:number}}" }, { p : 3 });
+test("type - number/string - pass", { prop : "3" }, { p : "{{prop:number}}" }, { p : 3 });
+test("type - number/string - fail", { prop : "aa" }, { p : "{{prop:number}}" }, "p.{{prop}} - Expected number, but received string");
+test("type - number - fail", { prop : "test" }, { p : "{{prop:number}}" }, "p.{{prop}} - Expected number, but received string");
+test("type - boolean - pass", { prop : true }, { p : "{{prop:boolean}}" }, { p : true });
+test("type - boolean - fail", { prop : 4 }, { p : "{{prop:boolean}}" }, "p.{{prop}} - Expected boolean, but received number");
+test("type - string - pass", { prop : "aa" }, { p : "{{prop:string}}" }, { p : "aa" });
+test("type - string/number - pass", { prop : 4 }, { p : "{{prop:string}}" }, { p : "4" });
+test("type - string - fail", { prop : true }, { p : "{{prop:string}}" }, "p.{{prop}} - Expected string, but received boolean");
+test("type - array - pass", { prop : [] }, { p : "{{prop:array}}" }, { p : [] });
+test("type - array - fail", { prop : false }, { p : "{{prop:array}}" }, "p.{{prop}} - Expected array, but received boolean");
+test("type - object - pass", { prop : {} }, { p : "{{prop:object}}" }, { p : {} });
+test("type - object - fail", { prop : "zz" }, { p : "{{prop:object}}" }, "p.{{prop}} - Expected object, but received string");
+test("type - date - pass", { prop : "2015-07-15T22:00:00.000Z" }, { p : "{{prop:date}}" }, { p : "2015-07-15T22:00:00.000Z" });
+test("type - date obj - pass", { prop : new Date("2015-07-15T22:00:00.000Z") }, { p : "{{prop:date}}" }, { p : "2015-07-15T22:00:00.000Z" });
+test("type - date - fail", { prop : "zz" }, { p : "{{prop:date}}" }, "p.{{prop}} - Expected date, but received string");
+test("type - required - fail", { prop1 : "test" }, { p : "{{prop:number}}" }, "p.{{prop}} - Missing required value");
+test("type - optional - pass", { prop1 : "test" }, { p : "{{prop:?number}}", p2 : 3 }, { p2 : 3 });
+test("type - in-string - fail", { prop : "aa" }, { p : "test {{prop:number}}" }, "p.{{prop}} - Expected number, but received string");
+
+console.log(`\nPassed: ${passed}, Failed: ${failed}`);
