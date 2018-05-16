@@ -3,25 +3,33 @@ class JSLT {
 	constructor() {	
 	}
 	
-	transform(data, template) {
-		return JSLT.transform(data, template || this.template);
+	transform(data, template, props) {
+		return JSLT.transform(data, template || this.template, props || this.props || {});
 	}
 	
 	setTemplate(template) {
 		this.template = template;
 	}
 	
-	static transform(data, template) {
+	setProps(props) {
+		this.props = props;
+	}
+	
+	static transform(data, template, props = {}) {
 		lastError = null;
+		transformProps = props;
 		var res = compileTemplate(data, arguments.length == 2 ? template : this.template);
 		if (lastError) {
 			var ex = lastError.stack.reverse().join(".") + " - " + lastError.message;
 			lastError = null;
 			throw ex;
 		}
+		transformProps = null;
 		return res;
 	}
 };
+
+var lastError = null, transformProps;
 
 function compileTemplate(data, template) {
 	function visit(value) {
@@ -35,8 +43,13 @@ function compileTemplate(data, template) {
 			return value.map(visit);
 		
 		if (value instanceof Object && !(value instanceof RegExp)) {
-			const entries = Object.entries(value);
+			if (typeof value == "function") {
+				if (transformProps.disableFunctions) return error("[function]", "disableFunctions is enabled");
+				try { return value(data);
+				} catch(ex) { return error("[function]", ex.message); }
+			}
 			
+			const entries = Object.entries(value);
 			const ops = entries.filter(e => e[0].startsWith("$"));
 			if (ops.length) return processUpdate(ops, data);
 			
@@ -48,7 +61,7 @@ function compileTemplate(data, template) {
 			}
 			return obj;
 		}
-		
+				
 		return value;
 	}
 
@@ -126,8 +139,6 @@ function processUpdate(ops, data) {
 	return payload;
 }
 
-var lastError = null;
-
 function error(prop, message) {
 	if (lastError) lastError.stack.push(prop);
 	else lastError = { stack : [ prop ], message };
@@ -142,8 +153,10 @@ function verifyType(propName, type, value) {
 	}
 
 	if (type == actualType) return value;
-	if (type == "string" && actualType == "number") return String(value);
-	if (type == "number" && actualType == "string" && !isNaN(Number(value))) return Number(value);
+	if (!transformProps.disableTypeCoercion) {
+		if (type == "string" && actualType == "number") return String(value);
+		if (type == "number" && actualType == "string" && !isNaN(Number(value))) return Number(value);
+	}
 	if (type == "date" && actualType == "string") {
 		let date = new Date(value);
 		if (date.toJSON() === value) return date;
@@ -152,58 +165,6 @@ function verifyType(propName, type, value) {
 	error(`{{${propName}}}`, `Expected ${type}, but received ${actualType}`);
 	return null;
 }
-
-const QueryOperators = {
-	$eq(expected, actual) {
-		return expected == actual;
-	},
-	
-	$ne(expected, actual) {
-		return expected != actual;
-	},
-	
-	$gt(expected, actual) {
-		return actual > expected;
-	},
-	
-	$lt(expected, actual) {
-		return actual < expected;
-	},
-	
-	$gte(expected, actual) {
-		return actual >= expected;
-	},
-	
-	$lte(expected, actual) {
-		return actual <= expected;
-	},
-	
-	$in(expected, actual) {
-		if (!(expected instanceof Array)) throw "$in: argumment is not an array";
-		return expected.includes(actual);
-	},
-	
-	$nin(expected, actual) {
-		if (!(expected instanceof Array)) throw "$nin: argumment is not an array";
-		return !expected.includes(actual);
-	},
-	
-	$regex(expected, actual) {
-		if (expected instanceof RegExp) return expected.test(actual);
-		if (typeof expected !== "string") throw "$regex: invalid expression";
-		var re = new RegExp(expected);
-		return re.test(actual);
-	},
-	
-	$type(expected, actual) {
-		var type = typeof actual;
-		if (type === "object") {
-			if (actual === null) type = null;
-			else if (actual instanceof Array) type = "array";
-		}
-		return expected instanceof Array ? expected.includes(type) : type == expected ;
-	}
-};
 
 const UpdateOperators = {
 	$fetch(input, args, global) {
@@ -287,6 +248,19 @@ const UpdateOperators = {
 		
 		return String(input).replace(firstArg, args.newSubstr);
 	},
+
+	$assert(input, args, global) {
+		if (transformProps.disableAssertions) return input;
+		
+		var keywords = Object.keys(args);
+		for (var i = 0; i < keywords.length; ++i) {
+			var keyword = keywords[i];
+			keywordFunc = AssertKeywords[keyword];
+			if (!keywordFunc) return error(`[${keyword}]`, "Unknown keyword");
+			if (!keywordFunc(input, args[keyword]))	return error("[input]",  keyword);
+		}
+		return input;
+	},
 	
 	// Array
 	$map(input, args, global) {
@@ -340,5 +314,8 @@ const UpdateOperators = {
 		return input.reduce((sum, cur) => sum + Number(cur), 0);
 	}
 };
+
+const QueryOperators = require("./lib/queryOperators.js");
+const AssertKeywords = require("./lib/assertKeywords.js");
 
 module.exports = JSLT;
