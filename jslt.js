@@ -18,7 +18,7 @@ class JSLT {
 	static transform(data, template, props = {}) {
 		lastError = null;
 		transformProps = props;
-		var res = compileTemplate(data, arguments.length == 2 ? template : this.template);
+		var res = compileTemplate(data, template);
 		if (lastError) {
 			var ex = lastError.stack.reverse().join(".") + " - " + lastError.message;
 			lastError = null;
