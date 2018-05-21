@@ -254,8 +254,7 @@ const UpdateOperators = {
 		
 		var keywords = Object.keys(args);
 		for (var i = 0; i < keywords.length; ++i) {
-			var keyword = keywords[i];
-			keywordFunc = AssertKeywords[keyword];
+			var keyword = keywords[i], keywordFunc = AssertKeywords[keyword];
 			if (!keywordFunc) return error(`[${keyword}]`, "Unknown keyword");
 			if (!keywordFunc(input, args[keyword]))	return error("[input]",  keyword);
 		}
