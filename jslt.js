@@ -16,20 +16,23 @@ class JSLT {
 	}
 	
 	static transform(data, template, props = {}) {
-		lastError = null;
-		transformProps = props;
+		state = { catchCount : 0, props };
 		var res = compileTemplate(data, template);
-		if (lastError) {
-			var ex = lastError.stack.reverse().join(".") + " - " + lastError.message;
-			lastError = null;
-			throw ex;
-		}
-		transformProps = null;
-		return res;
+		var lastState = state;
+		state = null;
+		
+		if (!lastState.errors || lastState.errors.length == 0)
+			return res;
+		
+		if (lastState.lastError)
+			throw lastState.lastError.stack.reverse().join(".") + " - " + lastState.lastError.message;
+
+		collectErrors(res);
+		throw { result : res, errors : lastState.errors };
 	}
 };
 
-var lastError = null, transformProps;
+var state = null;
 
 function compileTemplate(data, template) {
 	function visit(value) {
@@ -44,7 +47,7 @@ function compileTemplate(data, template) {
 		
 		if (value instanceof Object && !(value instanceof RegExp)) {
 			if (typeof value == "function") {
-				if (transformProps.disableFunctions) return error("[function]", "disableFunctions is enabled");
+				if (state.props.disableFunctions) return error("[function]", "disableFunctions is enabled");
 				try { return value(data);
 				} catch(ex) { return error("[function]", ex.message); }
 			}
@@ -57,7 +60,12 @@ function compileTemplate(data, template) {
 			for (var i = 0; i < entries.length; ++i) {
 				const [key, value] = entries[i];
 				obj[key] = visit(value);
-				if (lastError) return error(key);
+				if (state.lastError) {
+					if (state.props.continueOnError && state.catchCount == 0) {
+						obj[key] = state.lastError;
+						state.lastError = null;
+					} else return error(key);
+				}
 			}
 			return obj;
 		}
@@ -116,6 +124,10 @@ function processQuery(query, self, global) {
 
 function processUpdate(ops, data) {
 	var payload = data;
+	
+	if (state.props.continueOnError)
+		state.catchCount += ops.filter(o => o[0].replace(/\d+$/, "") == "$catch").length;
+	
 	for (var i = 0; i < ops.length; ++i) {
 		const [opName, opValue] = ops[i];
 		const opFunc = UpdateOperators[opName] || UpdateOperators[opName.replace(/\d+$/, "")];
@@ -123,25 +135,35 @@ function processUpdate(ops, data) {
 		if (opFunc) payload = opFunc(payload, opValue, data);
 		else error(opName, "Unknown operator");
 		
-		if (lastError) {
+		if (state.lastError) {
 			for (++i; i < ops.length; ++i) {
 				if (ops[i][0].replace(/\d+$/, "") == "$catch") {
-					var exception = { message : lastError.message, stack : lastError.stack.reverse().join(".") };
-					lastError = null;
+					if (state.props.continueOnError) --state.catchCount;
+					var exception = { message : state.lastError.message, stack : state.lastError.stack.reverse().join(".") };
+					state.lastError = null;
+					state.errors.pop();
 					payload = compileTemplate(exception, ops[i][1]);
-					if (lastError) continue;
+					if (state.lastError) continue;
 					else break;
 				}
 			}
-			if (lastError) return error(opName);
+			if (state.lastError) return error(opName);
 		}
 	}
 	return payload;
 }
 
+function TransformError(message, prop) {
+	this.message = message;
+	this.stack = [ prop ];
+}
+
 function error(prop, message) {
-	if (lastError) lastError.stack.push(prop);
-	else lastError = { stack : [ prop ], message };
+	if (state.lastError) state.lastError.stack.push(prop);
+	else {
+		state.lastError = new TransformError(message, prop);
+		(state.errors || (state.errors = [])).push(state.lastError);
+	}
 }
 
 function verifyType(propName, type, value) {
@@ -153,7 +175,7 @@ function verifyType(propName, type, value) {
 	}
 
 	if (type == actualType) return value;
-	if (!transformProps.disableTypeCoercion) {
+	if (!state.props.disableTypeCoercion) {
 		if (type == "string" && actualType == "number") return String(value);
 		if (type == "number" && actualType == "string" && !isNaN(Number(value))) return Number(value);
 	}
@@ -166,12 +188,36 @@ function verifyType(propName, type, value) {
 	return null;
 }
 
+function collectErrors(obj) {
+	function visit(value, prefix) {
+		if (prefix.length > 20) return;
+		if (value instanceof Array) {
+			value.forEach((val, i) => {
+				if (val instanceof TransformError) {
+					val.path = prefix.concat(i);
+					value[i] = null;
+				} else visit(val, prefix.concat(i));
+			});
+		} else if (value) {
+			Object.entries(value).forEach(([key, val]) => {
+				if (val instanceof TransformError) {
+					val.path = prefix.concat(key);
+					value[key] = null;
+				} else visit(val, prefix.concat(key));
+			});
+		}
+	}
+
+	visit(obj, []);
+}
+
 const UpdateOperators = {
 	$fetch(input, args, global) {
 		return compileTemplate(input, args);
 	},
 	
 	$catch(input, args, global) {
+		if (state.props.continueOnError) --state.catchCount;
 		return input;
 	},
 	
@@ -250,7 +296,7 @@ const UpdateOperators = {
 	},
 
 	$assert(input, args, global) {
-		if (transformProps.disableAssertions) return input;
+		if (state.props.disableAssertions) return input;
 		
 		var keywords = Object.keys(args);
 		for (var i = 0; i < keywords.length; ++i) {
@@ -268,7 +314,12 @@ const UpdateOperators = {
 		for (var i = 0; i < input.length; ++i) {
 			newGlobal.this = input[i];
 			retVal.push(compileTemplate(newGlobal, args));
-			if (lastError) return error(`[${i}]`);
+			if (state.lastError) {
+				if (state.props.continueOnError && state.catchCount == 0) {
+					retVal[retVal.length - 1] = { error : state.lastError.message };
+					state.lastError = null;					
+				} else return error(`[${i}]`);
+			}
 		}
 		return retVal;
 	},
@@ -279,7 +330,7 @@ const UpdateOperators = {
 		for (var i = 0; i < input.length; ++i) {
 			newGlobal.this = input[i];
 			if (processQuery(args, input[i], newGlobal)) retVal.push(input[i]);
-			if (lastError) return error(`[${i}]`);
+			if (state.lastError) return error(`[${i}]`);
 		}
 		return retVal;
 	},

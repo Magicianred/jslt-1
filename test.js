@@ -31,16 +31,16 @@ var globalData = {
 function test(name, data, template, expected) {
 	if (arguments.length == 3) [ data, template, expected ] = [ globalData, data, template ];
 	try {
-		var res = jslt.transform(data, template);
+		var res = jslt.transform(data, template, transformProps);
 	} catch(ex) {
 		res = ex;
 	}
 	var success = JSON.stringify(res) == JSON.stringify(expected);
 	success ? ++passed : ++failed;
-	console.log(`${name.padEnd(40)} ${success ? "Passed" : "FAILED  " + JSON.stringify(res)}`);
+	console.log(`${name.padEnd(45)} ${success ? "Passed" : "FAILED  " + JSON.stringify(res)}`);
 }
 
-var passed = 0, failed = 0;
+var passed = 0, failed = 0, transformProps;
 var jslt = require("./jslt.js");
 
 test("Static string", "aaa", "aaa");
@@ -191,5 +191,21 @@ test("$assert - minProperties - pass", { a : 3, b : 4 }, { $assert : { minProper
 test("$assert - minProperties - fail", { a : 3, b : 4 }, { $assert : { minProperties : 4 } }, "$assert.[input] - minProperties");
 test("$assert - required - pass", { a : 3, b : 4 }, { $assert : { required : [ "a" ] } }, { a : 3, b : 4 });
 test("$assert - required - fail", { a : 3, b : 4 }, { $assert : { required : [ "c" ] } }, "$assert.[input] - required");
+
+transformProps = { disableAssertions : true };
+test("disableAssertions", 4, { $assert : { maximum : 3 } }, 4);
+
+transformProps = { disableFunctions : true };
+test("disableFunctions - function", { prop : "aa" }, { p : data => data.prop }, "p.[function] - disableFunctions is enabled");
+
+transformProps = { disableTypeCoercion : true };
+test("disableTypeCoercion - number/string", { prop : 3 }, { p : "{{prop:string}}" }, "p.{{prop}} - Expected string, but received number");
+test("disableTypeCoercion - string/number", { prop : "3" }, { p : "{{prop:number}}" }, "p.{{prop}} - Expected number, but received string");
+
+transformProps = { continueOnError : true };
+test("continueOnError", { p1 : "{{prop1:number}}", p2 : "{{prop1:number}}" }, { p1 : { error : "Missing required value"}, p2 : { error : "Missing required value"} });
+test("continueOnError - array", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" } } }, { p :[ { b : 1 }, { b : { error : "Expected number, but received string" } }, {  b : 3 } ]});
+test("continueOnError - array & catch1", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { $fetch : "{{this:number}}", $catch : "err" } } }, { p : [1, "err", 3] });
+test("continueOnError - array & catch2", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" }, $catch : "err" } }, { p : "err" });
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
