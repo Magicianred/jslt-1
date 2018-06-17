@@ -17,6 +17,17 @@ class JSLT {
 	
 	static transform(data, template, props = {}) {
 		state = { catchCount : 0, props };
+		
+		if (props.locales) {
+			state.locales = [];
+			let locales = props.locales instanceof Array ? props.locales : [ props.locales ];
+			locales.forEach(locale => {
+				let parts = locale.split("-");
+				for (var i = parts.length; i > 0; --i)
+					state.locales.push(parts.slice(0, i).join("-"));
+			});
+		}
+				
 		var res = compileTemplate(data, template);
 		var lastState = state;
 		state = null;
@@ -237,6 +248,14 @@ const UpdateOperators = {
 		return idx != -1 ? compileTemplate(global, args.to[idx]) : input;
 	},
 	
+	$localize(input, args, global) {
+		if (!args) return error("[args]", "Missing arguments");
+		var locales = state.locales || [ "en-US", "en" ];
+		for (var i = 0; i < locales.length; ++i)
+			if (args.hasOwnProperty(locales[i]))
+				return compileTemplate(global, args[locales[i]]);
+	},
+	
 	$join(input, args, global) {
 		return args.map(item => compileTemplate(global, item)).join("");
 	},
@@ -246,11 +265,11 @@ const UpdateOperators = {
 	},
 	
 	$formatDate(input, args, global) {
-		return (new Date(input)).toLocaleString(compileTemplate(global, args && args.locales), compileTemplate(global, args && args.options));
+		return (new Date(input)).toLocaleString(compileTemplate(global, (args && args.locales) || state.locales), compileTemplate(global, args && args.options));
 	},
 	
 	$formatNumber(input, args, global) {
-		return Number(input).toLocaleString(compileTemplate(global, args && args.locales), compileTemplate(global, args && args.options));
+		return Number(input).toLocaleString(compileTemplate(global, (args && args.locales) || state.locales), compileTemplate(global, args && args.options));
 	},
 	
 	$parseNumber(input, args, global) {
@@ -302,7 +321,7 @@ const UpdateOperators = {
 		for (var i = 0; i < keywords.length; ++i) {
 			var keyword = keywords[i], keywordFunc = AssertKeywords[keyword];
 			if (!keywordFunc) return error(`[${keyword}]`, "Unknown keyword");
-			if (!keywordFunc(input, args[keyword]))	return error("[input]",  keyword);
+			if (!keywordFunc(input, args[keyword]))	return error("[input]", keyword);
 		}
 		return input;
 	},

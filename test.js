@@ -208,4 +208,17 @@ test("continueOnError - array", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $m
 test("continueOnError - array & catch1", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { $fetch : "{{this:number}}", $catch : "err" } } }, { p : [1, "err", 3] });
 test("continueOnError - array & catch2", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" }, $catch : "err" } }, { p : "err" });
 
+transformProps = { locales : "ko-KR" };
+test("$localize - exact", { label : { $localize : { "ko-KR" : "Korean KR" } } }, { label : "Korean KR" });
+test("$localize - lang", { label : { $localize : { "ko" : "Korean" } } }, { label : "Korean" });
+test("$localize - none", { label : { $localize : { "en" : "English" } } }, {});
+//test("$formatDate - locales", Date.UTC(2017, 4, 20, 5, 0, 0), { $formatDate: {} }, "2017-5-20 08:00:00");
+
+transformProps = { locales : [ "ko-KR", "en-US" ] };
+test("$localize - multi - exact", { label : { $localize : { "en-US" : "English US", "ko-KR" : "Korean KR" } } }, { label : "Korean KR" });
+test("$localize - multi - lang", { label : { $localize : { "en-US" : "English US", "ko" : "Korean" } } }, { label : "Korean" });
+test("$localize - multi - fallback - exact", { label : { $localize : { "en-US" : "English US" } } }, { label : "English US" });
+test("$localize - multi - fallback - lang", { label : { $localize : { "en" : "English" } } }, { label : "English" });
+//test("$formatDate - multi - locales", Date.UTC(2017, 4, 20, 5, 0, 0), { $formatDate: {} }, "2017-5-20 08:00:00");
+
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
