@@ -22,7 +22,7 @@ class JSLT {
 			state.locales = [];
 			let locales = props.locales instanceof Array ? props.locales : [ props.locales ];
 			locales.forEach(locale => {
-				let parts = locale.split("-");
+				let parts = locale.toLowerCase().split("-");
 				for (var i = parts.length; i > 0; --i)
 					state.locales.push(parts.slice(0, i).join("-"));
 			});
@@ -250,10 +250,14 @@ const UpdateOperators = {
 	
 	$localize(input, args, global) {
 		if (!args) return error("[args]", "Missing arguments");
-		var locales = state.locales || [ "en-US", "en" ];
-		for (var i = 0; i < locales.length; ++i)
-			if (args.hasOwnProperty(locales[i]))
-				return compileTemplate(global, args[locales[i]]);
+		const locales = state.locales || [ "en-us", "en" ];
+		const keys = Object.keys(args);
+		
+		for (var i = 0; i < locales.length; ++i) {
+			var locale = locales[i];
+			var key = keys.find(k => k.toLowerCase() == locale);
+			if (key) return compileTemplate(global, args[key]);
+		}
 	},
 	
 	$join(input, args, global) {
@@ -326,6 +330,13 @@ const UpdateOperators = {
 		return input;
 	},
 	
+	$function(input, args, global) {
+		if (state.props.disableFunctions) return error("[function]", "disableFunctions is enabled");
+		if (typeof args != "function") return error("[function]", "Expected a function, but received ${typeof args}");
+		try { return args(input, global);
+		} catch(ex) { return error("[function]", ex.message); }		
+	},
+	
 	// Array
 	$map(input, args, global) {
 		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
@@ -371,7 +382,7 @@ const UpdateOperators = {
 	
 	$find(input, args, global) {
 		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
-		var newGlobal = Object.create(global);
+		const newGlobal = Object.create(global);
 		return input.find(item => {
 			newGlobal.this = item;
 			return processQuery(args, item, newGlobal);

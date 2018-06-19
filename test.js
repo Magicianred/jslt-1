@@ -164,6 +164,8 @@ test("$catch - array", [ [], 2, [] ], { $map : { p : { $fetch : "{{this}}", $map
 test("$catch - catch with error", "test", { $map : {}, $catch : { $map : {} }, $catch2 : "catch2" }, "catch2");
 
 test("function", { prop : "aa" }, { p : data => data.prop }, { p : "aa" });
+test("$function", { prop : "aa"}, { p : { $fetch : "abc", $function : input => input.toUpperCase() }}, { p : "ABC" });
+test("$function", { prop : [ "a", "b" ] }, { p : { $fetch : "{{prop}}", $map : { $function : (input, global) => global.this.toUpperCase() } } }, { p : [ "A", "B" ] });
 
 test("$assert - multipleOf - pass", 4, { $assert : { multipleOf : 2 } }, 4);
 test("$assert - multipleOf - fail", 4, { $assert : { multipleOf : 3 } }, "$assert.[input] - multipleOf");
@@ -197,14 +199,26 @@ test("disableAssertions", 4, { $assert : { maximum : 3 } }, 4);
 
 transformProps = { disableFunctions : true };
 test("disableFunctions - function", { prop : "aa" }, { p : data => data.prop }, "p.[function] - disableFunctions is enabled");
+test("disableFunctions - $function", { prop : "aa" }, { p : { $function : data => data.prop } }, "p.$function.[function] - disableFunctions is enabled");
 
 transformProps = { disableTypeCoercion : true };
 test("disableTypeCoercion - number/string", { prop : 3 }, { p : "{{prop:string}}" }, "p.{{prop}} - Expected string, but received number");
 test("disableTypeCoercion - string/number", { prop : "3" }, { p : "{{prop:number}}" }, "p.{{prop}} - Expected number, but received string");
 
 transformProps = { continueOnError : true };
-test("continueOnError", { p1 : "{{prop1:number}}", p2 : "{{prop1:number}}" }, { p1 : { error : "Missing required value"}, p2 : { error : "Missing required value"} });
-test("continueOnError - array", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" } } }, { p :[ { b : 1 }, { b : { error : "Expected number, but received string" } }, {  b : 3 } ]});
+test("continueOnError", { p1 : "{{prop1:number}}", p2 : "{{prop1:number}}" }, {
+	result : { p1 : null, p2 : null },
+	errors : [
+		{ message : "Missing required value", stack : [ "{{prop1}}" ], path : [ "p1" ] },
+		{ message : "Missing required value", stack : [ "{{prop1}}" ], path : [ "p2" ] }
+	]
+});
+
+test("continueOnError - array", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" } } }, {
+	result : { p : [ { b : 1 }, { b : null },{ b : 3 } ] },
+	errors : [ { message : "Expected number, but received string", stack : [ "{{this}}" ], path : [ "p", 1, "b" ] } ]
+});
+
 test("continueOnError - array & catch1", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { $fetch : "{{this:number}}", $catch : "err" } } }, { p : [1, "err", 3] });
 test("continueOnError - array & catch2", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" }, $catch : "err" } }, { p : "err" });
 
@@ -216,6 +230,7 @@ test("$localize - none", { label : { $localize : { "en" : "English" } } }, {});
 
 transformProps = { locales : [ "ko-KR", "en-US" ] };
 test("$localize - multi - exact", { label : { $localize : { "en-US" : "English US", "ko-KR" : "Korean KR" } } }, { label : "Korean KR" });
+test("$localize - multi - case", { label : { $localize : { "en-US" : "English US", "ko-kr" : "Korean KR" } } }, { label : "Korean KR" });
 test("$localize - multi - lang", { label : { $localize : { "en-US" : "English US", "ko" : "Korean" } } }, { label : "Korean" });
 test("$localize - multi - fallback - exact", { label : { $localize : { "en-US" : "English US" } } }, { label : "English US" });
 test("$localize - multi - fallback - lang", { label : { $localize : { "en" : "English" } } }, { label : "English" });
