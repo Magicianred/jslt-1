@@ -143,8 +143,12 @@ function processUpdate(ops, data) {
 		const [opName, opValue] = ops[i];
 		const opFunc = UpdateOperators[opName] || UpdateOperators[opName.replace(/\d+$/, "")];
 		
-		if (opFunc) payload = opFunc(payload, opValue, data);
-		else error(opName, "Unknown operator");
+		try {
+			if (opFunc) payload = opFunc(payload, opValue, data);
+			else error(opName, "Unknown operator");
+		} catch(ex) {
+			error("[exception]", ex.message);
+		}
 		
 		if (state.lastError) {
 			for (++i; i < ops.length; ++i) {
@@ -241,8 +245,10 @@ const UpdateOperators = {
 		}
 		
 		if (!args) return error("[args]", "Missing arguments");
-		if (!(args.from instanceof Array)) return error("[from]", `Expected an array, but received ${typeof args.from}`);
-		if (!(args.to instanceof Array)) return error("[to]", `Expected an array, but received ${typeof args.to}`);
+		if (!(args.from instanceof Array))
+			return error("[from]", `Expected an array, but received ${typeof args.from}`);
+		if (!(args.to instanceof Array))
+			return error("[to]", `Expected an array, but received ${typeof args.to}`);
 		
 		var idx = args.from.indexOf(input);
 		return idx != -1 ? compileTemplate(global, args.to[idx]) : input;
@@ -269,11 +275,17 @@ const UpdateOperators = {
 	},
 	
 	$formatDate(input, args, global) {
-		return (new Date(input)).toLocaleString(compileTemplate(global, (args && args.locales) || state.locales), compileTemplate(global, args && args.options));
+		return (new Date(input)).toLocaleString(
+			compileTemplate(global, (args && args.locales) || state.locales),
+			compileTemplate(global, args && args.options)
+		);
 	},
 	
 	$formatNumber(input, args, global) {
-		return Number(input).toLocaleString(compileTemplate(global, (args && args.locales) || state.locales), compileTemplate(global, args && args.options));
+		return Number(input).toLocaleString(
+			compileTemplate(global, (args && args.locales) || state.locales),
+			compileTemplate(global, args && args.options)
+		);
 	},
 	
 	$parseNumber(input, args, global) {

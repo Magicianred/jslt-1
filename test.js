@@ -138,10 +138,11 @@ test("$parseNumber commas", "1,230", { $parseNumber : {} }, 1230);
 
 test("$formatNumber", 1234, { $formatNumber : { options : { useGrouping : false }} }, "1234");
 test("$formatNumber - transform", { $fetch : 1234, $formatNumber : { options : { style : "currency", currencyDisplay: "name", currency : "{{currencyName}}" }} }, "1,234.00 EUR");
+test("$formatNumber - exception", 1234, { $formatNumber : { options : { style : "currency", currencyDisplay: "name", currency : "USD1" }} }, "$formatNumber.[exception] - Invalid currency code: USD1");
 
-test("$formatDate", Date.UTC(2017, 4, 20, 5, 0, 0), { $formatDate: { locales : "en-US" } }, "5/20/2017, 8:00:00 AM");
-test("$formatDate", Date.UTC(2017, 4, 20, 5, 0, 0), { $formatDate: { locales : "en-US", options : { month : "short", day : "numeric", weekday : "long" } } }, "Saturday, May 20");
-test("$formatDate - transform", { $fetch : Date.UTC(2017, 4, 20, 5, 0, 0), $formatDate: { locales : "{{locale}}" } }, "5/20/2017, 8:00:00 AM");
+test("$formatDate", Date.UTC(2017, 4, 20, 5, 0, 0), { $formatDate: { locales : "en-US", options : { timeZone : "UTC" } } }, "5/20/2017, 5:00:00 AM");
+test("$formatDate", Date.UTC(2017, 4, 20, 5, 0, 0), { $formatDate: { locales : "en-US", options : { timeZone : "UTC", month : "short", day : "numeric", weekday : "long" } } }, "Saturday, May 20");
+test("$formatDate - transform", { $fetch : Date.UTC(2017, 4, 20, 5, 0, 0), $formatDate: { locales : "{{locale}}", options : { timeZone : "UTC" } } }, "5/20/2017, 5:00:00 AM");
 
 test("$parseDate", "16-07-2015", { $parseDate : { format : "dd-MM-yyyy", timezone: "02:00" } }, "2015-07-15T22:00:00.000Z");
 test("$parseDate", "07-16-2015", { $parseDate : { format : "MM/dd/yyyy", timezone: "-0430" } }, "2015-07-16T04:30:00.000Z");
