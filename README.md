@@ -197,7 +197,7 @@ var res = jslt.transform(true, {
     { from: false, to: "No" }
   }
 );
-console.log(res); // => true
+console.log(res); // => "Yes"
 ```
 With query operators:
 ```js
