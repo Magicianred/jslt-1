@@ -76,11 +76,14 @@ test("type - array - pass", { prop : [] }, { p : "{{prop:array}}" }, { p : [] })
 test("type - array - fail", { prop : false }, { p : "{{prop:array}}" }, "p.{{prop}} - Expected array, but received boolean");
 test("type - object - pass", { prop : {} }, { p : "{{prop:object}}" }, { p : {} });
 test("type - object - fail", { prop : "zz" }, { p : "{{prop:object}}" }, "p.{{prop}} - Expected object, but received string");
+test("type - object/null - fail", { prop : null }, { p : "{{prop:object}}" }, "p.{{prop}} - Missing required value");
 test("type - date - pass", { prop : "2015-07-15T22:00:00.000Z" }, { p : "{{prop:date}}" }, { p : "2015-07-15T22:00:00.000Z" });
 test("type - date obj - pass", { prop : new Date("2015-07-15T22:00:00.000Z") }, { p : "{{prop:date}}" }, { p : "2015-07-15T22:00:00.000Z" });
 test("type - date - fail", { prop : "zz" }, { p : "{{prop:date}}" }, "p.{{prop}} - Expected date, but received string");
-test("type - required - fail", { prop1 : "test" }, { p : "{{prop:number}}" }, "p.{{prop}} - Missing required value");
-test("type - optional - pass", { prop1 : "test" }, { p : "{{prop:?number}}", p2 : 3 }, { p2 : 3 });
+test("type - required/undefined - fail", { prop1 : "test" }, { p : "{{prop:number}}" }, "p.{{prop}} - Missing required value");
+test("type - required/null - fail", { prop : null }, { p : "{{prop:number}}" }, "p.{{prop}} - Missing required value");
+test("type - optional/undefined - pass", { prop1 : "test" }, { p : "{{prop:?number}}", p2 : 3 }, { p2 : 3 });
+test("type - optional/null - pass", { prop : null }, { p : "{{prop:?number}}", p2 : 3 }, { p : null, p2 : 3 });
 test("type - in-string - fail", { prop : "aa" }, { p : "test {{prop:number}}" }, "p.{{prop}} - Expected number, but received string");
 
 test("$fetch", { $fetch : "{{stringField}}" }, "testString");
@@ -208,7 +211,7 @@ test("disableTypeCoercion - string/number", { prop : "3" }, { p : "{{prop:number
 
 transformProps = { continueOnError : true };
 test("continueOnError", { p1 : "{{prop1:number}}", p2 : "{{prop1:number}}" }, {
-	result : { p1 : null, p2 : null },
+	result : { p1 : "[JSLT ERROR]", p2 : "[JSLT ERROR]" },
 	errors : [
 		{ message : "Missing required value", stack : [ "{{prop1}}" ], path : [ "p1" ] },
 		{ message : "Missing required value", stack : [ "{{prop1}}" ], path : [ "p2" ] }
@@ -216,7 +219,7 @@ test("continueOnError", { p1 : "{{prop1:number}}", p2 : "{{prop1:number}}" }, {
 });
 
 test("continueOnError - array", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" } } }, {
-	result : { p : [ { b : 1 }, { b : null },{ b : 3 } ] },
+	result : { p : [ { b : 1 }, { b : "[JSLT ERROR]" },{ b : 3 } ] },
 	errors : [ { message : "Expected number, but received string", stack : [ "{{this}}" ], path : [ "p", 1, "b" ] } ]
 });
 

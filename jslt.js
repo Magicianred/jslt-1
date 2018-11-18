@@ -112,7 +112,8 @@ function resolveProp(name, scope) {
 	}
 	
 	if (type) {
-		if (scope === undefined) return maybe ? undefined : error(`{{${nameWithoutType}}}`, "Missing required value");
+		if (scope === undefined || scope === null)
+			return maybe ? scope : error(`{{${nameWithoutType}}}`, "Missing required value");
 		return verifyType(nameWithoutType, type, scope);
 	}
 	return scope;
@@ -210,14 +211,14 @@ function collectErrors(obj) {
 			value.forEach((val, i) => {
 				if (val instanceof TransformError) {
 					val.path = prefix.concat(i);
-					value[i] = null;
+					value[i] = "[JSLT ERROR]";
 				} else visit(val, prefix.concat(i));
 			});
 		} else if (value) {
 			Object.entries(value).forEach(([key, val]) => {
 				if (val instanceof TransformError) {
 					val.path = prefix.concat(key);
-					value[key] = null;
+					value[key] = "[JSLT ERROR]";
 				} else visit(val, prefix.concat(key));
 			});
 		}
