@@ -100,7 +100,12 @@ test("$translate - default", "test", { $translate : [ { from : "not test", to : 
 
 test("$join", { $join : [ "Hello ", "world" ] }, "Hello world");
 test("$join - transform", { $join : [ "Hello ", "{{stringField}}" ] }, "Hello testString");
+test("$join (method)", { $fetch: [ "Hello", "world" ], $join : "+" }, "Hello+world");
+test("$join (method) - transform", { $fetch: [ "Hello", "world" ], $join : "{{numberField}}" }, "Hello12world");
+
+test("$concat", { $fetch : [ "Hello", "world" ], $concat : [ "world2" ] }, [ "Hello", "world", "world2" ]);
 test("$concat", { $concat : [ [ "Hello", "world" ], [ "world2" ] ] }, [ "Hello", "world", "world2" ]);
+test("$concat", { $fetch : [ "Hello", "world" ], $concat : [ "{{stringField}}" ] }, [ "Hello", "world", "testString" ]);
 
 test("$push", [ "aaa", "bbb", "ccc" ], { $push : "ddd" }, [ "aaa", "bbb", "ccc", "ddd" ]);
 test("$push & transform", { $fetch : "{{simpleArray}}", $push : "{{stringField}}" }, [ "aaa", "bbb", "ccc", "testString" ]);

@@ -1,4 +1,4 @@
-
+ 
 class JSLT {
 	constructor() {	
 	}
@@ -268,11 +268,14 @@ const UpdateOperators = {
 	},
 	
 	$join(input, args, global) {
+		if (input instanceof Array)
+			return input.join(compileTemplate(global, args));
 		return args.map(item => compileTemplate(global, item)).join("");
 	},
 
 	$concat(input, args, global) {
-		return [].concat(...args.map(item => compileTemplate(global, item)));
+		var target = input instanceof Array ? input : [];
+		return target.concat(...args.map(item => compileTemplate(global, item)));
 	},
 	
 	$formatDate(input, args, global) {
