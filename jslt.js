@@ -321,6 +321,7 @@ const UpdateOperators = {
 	},
 	
 	$replace(input, args, global) {
+		if (!args) return error("[arguments]", "missing / invalid");
 		if (!(typeof args.newSubstr == "string")) return error("[newSubstr]", "missing / invalid");
 		
 		var firstArg;
@@ -351,6 +352,28 @@ const UpdateOperators = {
 		if (typeof args != "function") return error("[function]", "Expected a function, but received ${typeof args}");
 		try { return args(input, global);
 		} catch(ex) { return error("[function]", ex.message); }		
+	},
+	
+	$blacklist(input, args, global) {
+		if (!(args instanceof Array)) return error("[arguments]", "missing / invalid");
+		if (!(input instanceof Object) || input === null) return input;
+		
+		var retVal = {};
+		Object.keys(input).forEach(key => {
+			if (!args.includes(key)) retVal[key] = input[key];
+		});
+		return retVal;
+	},
+
+	$whitelist(input, args, global) {
+		if (!(args instanceof Array)) return error("[arguments]", "missing / invalid");
+		if (!(input instanceof Object) || input === null) return input;
+		
+		var retVal = {};
+		Object.keys(input).forEach(key => {
+			if (args.includes(key)) retVal[key] = input[key];
+		});
+		return retVal;
 	},
 	
 	// Array

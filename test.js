@@ -161,6 +161,7 @@ test("$parseDate", { $fetch : "07-16-2015", $parseDate : { format : "MM/dd/yyyy"
 test("$replace substr", "test str", { $replace : { substr : "str", newSubstr : "new" } }, "test new");
 test("$replace regexp", "test 123", { $replace : { regexp : /\d+/, newSubstr : "" } }, "test ");
 test("$replace regexp string", "test 123", { $replace : { regexp : "\\d+", newSubstr : "" } }, "test ");
+test("$replace", "test str", { $replace : null }, "$replace.[arguments] - missing / invalid");
 
 test("$catch - no error", { prop : "test" }, { $fetch : "{{prop}}", $catch : {} }, "test");
 test("$catch - error", "test", { $map : {}, $catch : "error" }, "error");
@@ -244,5 +245,17 @@ test("$localize - multi - lang", { label : { $localize : { "en-US" : "English US
 test("$localize - multi - fallback - exact", { label : { $localize : { "en-US" : "English US" } } }, { label : "English US" });
 test("$localize - multi - fallback - lang", { label : { $localize : { "en" : "English" } } }, { label : "English" });
 //test("$formatDate - multi - locales", Date.UTC(2017, 4, 20, 5, 0, 0), { $formatDate: {} }, "2017-5-20 08:00:00");
+
+test("$blacklist", { a : 3, b : 2 }, { $blacklist : [ "a", "c" ] }, { b : 2 });
+test("$blacklist", { a : 3 }, { $blacklist : [ "a" ] }, {});
+test("$blacklist", 3, { $blacklist : [ "a", "c" ] }, 3);
+test("$blacklist", null, { $blacklist : [ "a", "c" ] }, null);
+test("$blacklist", null, { $blacklist : 3 }, "$blacklist.[arguments] - missing / invalid");
+
+test("$whitelist", { a : 3, b : 2 }, { $whitelist : [ "a", "c" ] }, { a : 3 });
+test("$whitelist", { a : 3 }, { $whitelist : [ "b" ] }, {});
+test("$whitelist", 3, { $whitelist : [ "a", "c" ] }, 3);
+test("$whitelist", null, { $whitelist : [ "a", "c" ] }, null);
+test("$whitelist", null, { $whitelist : 3 }, "$whitelist.[arguments] - missing / invalid");
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
