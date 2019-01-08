@@ -356,7 +356,7 @@ const UpdateOperators = {
 	
 	$assign(input, args, global) {
 		if (typeof input != "object" || input === null) return input;
-		return Object.assign({}, input, args);
+		return Object.assign({}, input, compileTemplate(global, args));
 	},
 	
 	$blacklist(input, args, global) {
