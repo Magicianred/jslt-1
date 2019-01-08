@@ -258,4 +258,10 @@ test("$whitelist", 3, { $whitelist : [ "a", "c" ] }, 3);
 test("$whitelist", null, { $whitelist : [ "a", "c" ] }, null);
 test("$whitelist", null, { $whitelist : 3 }, "$whitelist.[arguments] - missing / invalid");
 
+test("$assign", { a : 3, b : 2 }, { $assign : { c : 4 } }, { a : 3, b : 2, c : 4 });
+test("$assign", {}, { $assign : { c : 4 } }, { c : 4 });
+test("$assign", null, { $assign : { c : 4 } }, null);
+test("$assign", 3, { $assign : { c : 4 } }, 3);
+test("$assign", "123", { $assign : { c : 4 } }, "123");
+
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);

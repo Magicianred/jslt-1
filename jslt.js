@@ -354,9 +354,14 @@ const UpdateOperators = {
 		} catch(ex) { return error("[function]", ex.message); }		
 	},
 	
+	$assign(input, args, global) {
+		if (typeof input != "object" || input === null) return input;
+		return Object.assign({}, input, args);
+	},
+	
 	$blacklist(input, args, global) {
 		if (!(args instanceof Array)) return error("[arguments]", "missing / invalid");
-		if (!(input instanceof Object) || input === null) return input;
+		if (typeof input != "object" || input === null) return input;
 		
 		var retVal = {};
 		Object.keys(input).forEach(key => {
@@ -367,7 +372,7 @@ const UpdateOperators = {
 
 	$whitelist(input, args, global) {
 		if (!(args instanceof Array)) return error("[arguments]", "missing / invalid");
-		if (!(input instanceof Object) || input === null) return input;
+		if (typeof input != "object" || input === null) return input;
 		
 		var retVal = {};
 		Object.keys(input).forEach(key => {
