@@ -40,6 +40,16 @@ jslt.transform({
   - [$unshift](#unshift)
   - [$reverse](#reverse)
   - [$sum](#sum)
+  - [$assign](#assign)
+  - [$blacklist](#blacklist)
+  - [$whitelist](#whitelist)
+  - [$localize](#localize)
+
+- Special operators:
+  - [$function](#function)
+  - [$assert](#assert)
+  - [$catch](#catch)
+  
 - Query operators:
   - [$eq](#eq)
   - [$ne](#ne)
@@ -50,6 +60,7 @@ jslt.transform({
   - [$in](#in)
   - [$nin](#nin)
   - [$regex](#regex)
+  - [$type](#type)
 
 ## Transformation basics
 When transforming an object, the properties in the template are recursivly traversed and their output values are determined using the following rules:
@@ -283,6 +294,42 @@ var res = jslt.transform([ 1, 2, 3 ], { $sum: {} });
 console.log(res); // => 6
 ```
 
+### $assign
+Copies the properties from the parameters to the input object
+
+* `Input` **\<Object\>**
+* `Parameters` **\<Object\>**
+* `Output` **\<Object\>**
+
+```js
+var res = jslt.transform({ prop1 : "value1" }, { $assign: { prop2 : "value2" } });
+console.log(res); // => { prop1 : "value1", prop2 : "value2" }
+```
+
+### $blacklist
+Removes the specified properties from the input object
+
+* `Input` **\<Object\>**
+* `Parameters` **\<Array\>**
+* `Output` **\<Object\>**
+
+```js
+var res = jslt.transform({ prop1 : "value1", prop2 : "value2" }, { $blacklist: [ "prop2" ] });
+console.log(res); // => { prop1 : "value1" }
+```
+
+### $whitelist
+Removes all non specified properties from the input object
+
+* `Input` **\<Object\>**
+* `Parameters` **\<Array\>**
+* `Output` **\<Object\>**
+
+```js
+var res = jslt.transform({ prop1 : "value1", prop2 : "value2" }, { $whitelist: [ "prop2" ] });
+console.log(res); // => { prop2 : "value2" }
+```
+
 ## Query operators
 
 ### $eq
@@ -294,3 +341,22 @@ console.log(res); // => 6
 ### $in
 ### $nin
 ### $regex
+### $type
+
+## Assert keywords
+
+### enum
+### multipleOf
+### maximum
+### exclusiveMaximum
+### minimum
+### exclusiveMinimum
+### maxLength
+### minLength
+### maxItems
+### minItems
+### maxProperties
+### minProperties
+### required
+
+
