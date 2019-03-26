@@ -252,6 +252,11 @@ test("$blacklist", 3, { $blacklist : [ "a", "c" ] }, 3);
 test("$blacklist", null, { $blacklist : [ "a", "c" ] }, null);
 test("$blacklist", null, { $blacklist : 3 }, "$blacklist.[arguments] - missing / invalid");
 
+test("$blacklist - nested", { a : { c : 3, d : 4 }, b : 2 }, { $blacklist : [ "a.c" ] }, { a : { d : 4 }, b : 2 });
+test("$blacklist - nested array", { a : [{ c : 3, d : 4 } ], b : 2 }, { $blacklist : [ "a[].c" ] }, { a : [ { d : 4 } ], b : 2 });
+test("$blacklist - nested", { a : { c : 3 }, b : null }, { $blacklist : [ "a.c" ] }, { a : {}, b : null });
+
+
 test("$whitelist", { a : 3, b : 2 }, { $whitelist : [ "a", "c" ] }, { a : 3 });
 test("$whitelist", { a : 3 }, { $whitelist : [ "b" ] }, {});
 test("$whitelist", 3, { $whitelist : [ "a", "c" ] }, 3);
@@ -264,5 +269,15 @@ test("$assign", {}, { $assign : { c : 4 } }, { c : 4 });
 test("$assign", null, { $assign : { c : 4 } }, null);
 test("$assign", 3, { $assign : { c : 4 } }, 3);
 test("$assign", "123", { $assign : { c : 4 } }, "123");
+
+test("$flat", [ [1,2], [3,4] ], { $flat : {} }, [1,2,3,4]);
+test("$flat", [ [ [1,2] ], [ [3,4] ] ], { $flat : {} }, [ [1,2], [3,4] ]);
+test("$flat - error", null, { $flat : {} }, "$flat.[input] - Expected an array, but received object");
+
+test("$flatMap", [ { a : 1, b : 2 }, { a : 3, b : 4 } ], { $flatMap : [ "{{this.a}}", "{{this.b}}" ] }, [1,2,3,4]);
+
+
+test("$flatMap", { a : 1, b : 2 }, { $fetch : [ "{{a}}", "{{b}}" ], $sum : {} }, 3);
+
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);

@@ -353,20 +353,32 @@ const UpdateOperators = {
 		try { return args(input, global);
 		} catch(ex) { return error("[function]", ex.message); }		
 	},
-	
+	 
 	$assign(input, args, global) {
 		if (typeof input != "object" || input === null) return input;
 		return Object.assign({}, input, compileTemplate(global, args));
 	},
 	
 	$blacklist(input, args, global) {
+		function visit(obj, prefix) {
+			if (obj instanceof Array)
+				return obj.forEach(v => visit(v, prefix + "[]"));
+
+			if (prefix) prefix += ".";
+			Object.keys(obj).forEach(key => {
+				if (args.includes(prefix + key)) delete obj[key];
+				else {
+					let val = obj[key];
+					if (typeof val == "object" && val !== null) visit(val, prefix + key);
+				}
+			});			
+		}
+
 		if (!(args instanceof Array)) return error("[arguments]", "missing / invalid");
 		if (typeof input != "object" || input === null) return input;
-		
-		var retVal = {};
-		Object.keys(input).forEach(key => {
-			if (!args.includes(key)) retVal[key] = input[key];
-		});
+
+		var retVal = JSON.parse(JSON.stringify(input));
+		visit(retVal, "");
 		return retVal;
 	},
 
@@ -432,6 +444,17 @@ const UpdateOperators = {
 			return processQuery(args, item, newGlobal);
 		});
 	},
+	
+	$flat(input, args, global) {
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
+		return input.reduce((acc, val) => acc.concat(val), []);
+	},
+	
+	$flatMap(input, args, global) {
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
+		var res = UpdateOperators.$map(input, args, global);
+		return res.reduce((acc, val) => acc.concat(val), []);
+	},	
 	
 	$sum(input, args, global) {
 		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
