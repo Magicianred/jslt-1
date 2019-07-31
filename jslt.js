@@ -402,7 +402,7 @@ const UpdateOperators = {
 			retVal.push(compileTemplate(newGlobal, args));
 			if (state.lastError) {
 				if (state.props.continueOnError && state.catchCount == 0) {
-					retVal[retVal.length - 1] = { error : state.lastError.message };
+					retVal[retVal.length - 1] = state.lastError;
 					state.lastError = null;					
 				} else return error(`[${i}]`);
 			}
@@ -459,7 +459,34 @@ const UpdateOperators = {
 	$sum(input, args, global) {
 		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
 		return input.reduce((sum, cur) => sum + Number(cur), 0);
-	}
+	},
+
+	$arrayToObject(input, args, global) {
+		if (!(input instanceof Array)) return error("[input]", `Expected an array, but received ${typeof input}`);
+		var newGlobal = Object.create(global), retVal = {};
+		
+		for (var i = 0; i < input.length; ++i) {
+			newGlobal.this = input[i];
+			
+			let key = compileTemplate(newGlobal, args.key);
+			if (state.lastError) {
+				if (state.props.continueOnError && state.catchCount == 0) {
+					retVal["ERROR"] = state.lastError;
+					state.lastError = null;					
+				} else return error(`[${i}]`);
+			} else {
+				let value = compileTemplate(newGlobal, args.value);
+				if (state.lastError) {
+					if (state.props.continueOnError && state.catchCount == 0) {
+						value = state.lastError;
+						state.lastError = null;					
+					} else return error(`[${i}]`);
+				}
+				retVal[key] = value;
+			}
+		}
+		return retVal;
+	}	
 };
 
 const QueryOperators = require("./lib/queryOperators.js");

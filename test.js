@@ -134,6 +134,8 @@ test("$filter - type", [ 1, "2", true, {} ], { $filter : { $type : "number" } },
 test("$filter - type - array", [ 1, "2", true, {} ], { $filter : { $type : [ "number", "string" ] } }, [ 1, "2" ]);
 test("$filter - type", [ 1, [], {} ], { $filter : { $type : "array" } }, [ [] ]);
 
+test("$arrayToObject", [ { id : "a", v : 1 }, { id : "b", v : 2 } ], { $arrayToObject : { key : "{{this.id}}", value : "{{this}}" } }, { a : { id : "a", v : 1 }, b : { id : "b", v : 2 } });
+
 test("$reverse", [ "aaa", "bbb", "ccc" ], { $reverse : {} }, [ "ccc", "bbb", "aaa" ]);
 test("$reverse - map - transform", { $fetch : "{{array}}", $reverse : {}, $map : "{{this.stringField}}" }, [ "array3", "array2", "array1" ]);
 
@@ -224,9 +226,14 @@ test("continueOnError", { p1 : "{{prop1:number}}", p2 : "{{prop1:number}}" }, {
 	]
 });
 
-test("continueOnError - array", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" } } }, {
+test("continueOnError - array", { a : [ 1, "z", 3 ]}, { p : { $fetch : "{{a}}", $map : { b : "{{this:number}}" } } }, {
 	result : { p : [ { b : 1 }, { b : "[JSLT ERROR]" },{ b : 3 } ] },
 	errors : [ { message : "Expected number, but received string", stack : [ "{{this}}" ], path : [ "p", 1, "b" ] } ]
+});
+
+test("continueOnError - array2", { a : [ 1, "z", 3 ]}, { p : { $fetch : "{{a}}", $map : "{{this:number}}" } }, {
+	result : { p : [ 1, "[JSLT ERROR]", 3 ] },
+	errors : [ { message : "Expected number, but received string", stack : [ "{{this}}" ], path : [ "p", 1 ] } ]
 });
 
 test("continueOnError - array & catch1", { a : [ 1,"z",3 ]}, { p : { $fetch : "{{a}}", $map : { $fetch : "{{this:number}}", $catch : "err" } } }, { p : [1, "err", 3] });
