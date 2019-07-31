@@ -40,6 +40,10 @@ jslt.transform({
   - [$unshift](#unshift)
   - [$reverse](#reverse)
   - [$sum](#sum)
+  - [$find](#find)
+  - [$flat](#flat)
+  - [$flatMap](#flatMap)
+  - [$arrayToObject](#arrayToObject)
   - [$assign](#assign)
   - [$blacklist](#blacklist)
   - [$whitelist](#whitelist)
@@ -238,9 +242,10 @@ console.log(res); // => "High"
 * `Output` **\<Array\>**
 
 ### $filter
+Returns a new array with all the elements that match the query
 
 * `Input` **\<Array\>**
-* `Parameters` **\<Any\>**
+* `Parameters` **\<Object\>** Query object
 * `Output` **\<Array\>**
 
 ### $push
@@ -293,6 +298,42 @@ Returns the sum of all the elements in an array.
 var res = jslt.transform([ 1, 2, 3 ], { $sum: {} });
 console.log(res); // => 6
 ```
+### $find
+Returns the first element in the array that matches the query.
+
+* `Input` **\<Array\>**
+* `Parameters` **\<Object\>** Query object
+* `Output` **\<Any\>**
+
+```js
+var res = jslt.transform([ 1, 2, 3, 4 ], { $find: { $gt : 2 } });
+console.log(res); // => 3
+```
+### $flat
+Returns a new array with all sub-array elements concatenated (non-recursive).
+
+* `Input` **\<Array\>**
+* `Parameters` **None**
+* `Output` **\<Array\>**
+
+```js
+var res = jslt.transform([ 1, [ 2, 3], 4 ], { $flat: {} });
+console.log(res); // => [ 1, 2, 3, 4 ]
+```
+
+### $flatMap
+
+* `Input` **\<Array\>**
+* `Parameters` **None**
+* `Output` **\<Array\>**
+
+### $arrayToObject
+
+* `Input` **\<Array\>**
+* `Parameters`
+  - `key` **\<Any\>**
+  - `value` **\<Any\>**
+* `Output` **\<Object\>**
 
 ### $assign
 Copies the properties from the parameters to the input object
